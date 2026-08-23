@@ -80,11 +80,40 @@ python -m http.server 8000
 
 Then open <http://localhost:8000>.
 
-### Deploying to GitHub Pages
+## Deploying
 
-Push to `main`, then in the repository: **Settings → Pages → Source: Deploy from a branch →
-`main` / root**. Add the resulting `https://<user>.github.io` origin to your OAuth client's
-authorised JavaScript origins.
+There is no build step — the repository *is* the site — so any free static host works.
+Whichever you pick, the site must be served over **HTTPS**, and its origin must be listed in
+your OAuth client's authorised JavaScript origins.
+
+### GitHub Pages (already wired up)
+
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) publishes the site on every
+push. Turn it on once:
+
+**Settings → Pages → Source: GitHub Actions**
+
+The next push (or **Actions → Deploy to GitHub Pages → Run workflow**) puts the site at
+`https://<user>.github.io/<repo>/`.
+
+### Netlify
+
+[`netlify.toml`](netlify.toml) is included. At [app.netlify.com](https://app.netlify.com):
+**Add new site → Import an existing project → GitHub → pick this repo → Deploy**. No build
+command, publish directory `.`. You get a `*.netlify.app` domain with HTTPS.
+
+### The one thing that catches people out
+
+Google's **authorised JavaScript origins** field wants a bare origin — scheme and host only:
+
+| Correct | Rejected |
+| --- | --- |
+| `https://you.github.io` | `https://you.github.io/homeworkwritter/` |
+| `https://yoursite.netlify.app` | `https://yoursite.netlify.app/` |
+| `http://localhost:8000` | `localhost:8000` |
+
+No path, no trailing slash. The page can live at a sub-path; the *origin* is what is
+registered.
 
 ## How the typing works
 

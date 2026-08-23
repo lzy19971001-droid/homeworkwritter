@@ -1,0 +1,12 @@
+# Netlify alternative to GitHub Pages. There is nothing to build — the repo is
+# the site — so the publish directory is the repo root and the build command is
+# empty. Connect the repo at app.netlify.com and Netlify reads this file.
+[build]
+  publish = "."
+  command = ""
+
+# Keep the source readable rather than cached forever, so a push shows up at once.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
