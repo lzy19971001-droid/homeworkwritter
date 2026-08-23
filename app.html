@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Homework Writer — app</title>
+<link rel="stylesheet" href="./assets/styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9997;</text></svg>" />
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="./index.html"><span class="logo">✍️</span> Homework Writer</a>
+  <div id="account" class="account">
+    <button id="signInBtn" class="btn btn-primary">Sign in with Google</button>
+    <div id="profile" class="profile hidden">
+      <img id="avatar" alt="" width="28" height="28" />
+      <span id="who"></span>
+      <button id="signOutBtn" class="btn btn-ghost btn-sm">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="setupCard" class="card warn hidden">
+    <h2>One-time setup needed</h2>
+    <p>No Google OAuth <strong>Client ID</strong> is configured. Follow
+      <a href="https://github.com/lzy19971001-droid/homeworkwritter#setup" target="_blank" rel="noopener">the setup steps in the README</a>,
+      then paste your client ID below. It is stored in this browser only.</p>
+    <div class="row">
+      <input id="clientIdInput" type="text" placeholder="1234567890-abcdefg.apps.googleusercontent.com" />
+      <button id="saveClientId" class="btn btn-primary">Save</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>1. What should be written?</h2>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-pane="pastePane" role="tab">Paste text</button>
+      <button class="tab" data-pane="filePane" role="tab">Upload a file</button>
+    </div>
+
+    <div id="pastePane" class="pane">
+      <textarea id="text" rows="12" placeholder="Paste or write the text you want typed into a new Google Doc…"></textarea>
+    </div>
+
+    <div id="filePane" class="pane hidden">
+      <label id="drop" class="dropzone" for="file">
+        <input id="file" type="file" class="visually-hidden"
+               accept=".txt,.md,.markdown,.csv,.rtf,.docx,.doc,.odt,.pdf,text/plain" />
+        <span class="drop-title">Drop a file here, or click to choose</span>
+        <span class="drop-sub">.txt .md .csv — read in your browser · .docx — unzipped locally · .pdf .doc .odt .rtf — converted by Google Drive</span>
+      </label>
+      <div id="fileInfo" class="file-info hidden"></div>
+    </div>
+
+    <div class="counts"><span id="counts">0 characters · 0 words</span></div>
+  </section>
+
+  <section class="card">
+    <h2>2. How should it be typed?</h2>
+    <div class="grid">
+      <label class="field">
+        <span>Document title</span>
+        <input id="title" type="text" placeholder="Homework" />
+      </label>
+      <label class="field">
+        <span>Drive folder <small>(optional — created if new)</small></span>
+        <input id="folder" type="text" placeholder="My Drive (root)" />
+      </label>
+      <label class="field">
+        <span>Typing speed <output id="wpmOut">55</output> wpm</span>
+        <input id="wpm" type="range" min="15" max="140" step="5" value="55" />
+      </label>
+      <label class="field">
+        <span>Typos &amp; corrections <output id="typoOut">3</output>%</span>
+        <input id="typo" type="range" min="0" max="12" step="1" value="3" />
+      </label>
+      <label class="field">
+        <span>Thinking pauses <output id="pauseOut">normal</output></span>
+        <input id="pause" type="range" min="0" max="3" step="1" value="1" />
+      </label>
+      <label class="field checkbox">
+        <input id="watch" type="checkbox" />
+        <span>Open the doc in a new tab so I can watch it being typed</span>
+      </label>
+    </div>
+    <p class="estimate" id="estimate">Estimated time: —</p>
+  </section>
+
+  <section class="card">
+    <h2>3. Go</h2>
+    <div class="actions">
+      <button id="startBtn" class="btn btn-primary" disabled>Create doc &amp; start typing</button>
+      <button id="pauseBtn" class="btn hidden">Pause</button>
+      <button id="stopBtn" class="btn btn-danger hidden">Stop</button>
+      <a id="docLink" class="btn btn-ghost hidden" target="_blank" rel="noopener">Open document ↗</a>
+    </div>
+    <div class="progress hidden" id="progressWrap">
+      <div class="bar"><div id="bar"></div></div>
+      <div class="progress-meta"><span id="progressText">—</span><span id="etaText"></span></div>
+    </div>
+    <pre id="log" class="log" aria-live="polite"></pre>
+  </section>
+
+  <footer class="foot">
+    <p>Runs entirely in your browser. Your text is sent only to Google's own APIs, using a token you grant.
+       The app can only see files it creates (<code>drive.file</code> scope).</p>
+  </footer>
+</main>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script type="module" src="./src/app.js"></script>
+</body>
+</html>

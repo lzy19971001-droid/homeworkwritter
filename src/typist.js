@@ -8,6 +8,20 @@ export class Stopped extends Error {
   constructor() { super('Stopped by user.'); this.name = 'Stopped'; }
 }
 
+/**
+ * Where the typing goes. The app passes the Google Doc sink below; the landing
+ * page passes one backed by a `<div>`, so the demo you see there is this exact
+ * engine rather than a lookalike animation.
+ *
+ * `length` returns the character count; positions follow the Docs API, where the
+ * first character sits at index 1.
+ */
+export const docsSink = (documentId) => ({
+  append: (text) => appendText(documentId, text),
+  remove: (startIndex, endIndex) => deleteRange(documentId, startIndex, endIndex),
+  length: () => getBodyLength(documentId),
+});
+
 /** Rough QWERTY neighbours — the keys a hurried finger actually hits. */
 const NEIGHBOURS = {
   a: 'qwsz', b: 'vghn', c: 'xdfv', d: 'serfcx', e: 'wsdr', f: 'drtgvc',
@@ -73,8 +87,10 @@ export class HumanTypist {
    * @param {function} opts.onProgress ({done, total, requests, etaMs, state})
    * @param {function} opts.onLog     (message, isError)
    */
-  constructor({ documentId, wpm = 55, typoRate = 0.03, pauseLevel = 1, onProgress = () => {}, onLog = () => {} }) {
+  constructor({ documentId = null, sink = null, wpm = 55, typoRate = 0.03, pauseLevel = 1,
+                onProgress = () => {}, onLog = () => {} }) {
     this.documentId = documentId;
+    this.sink = sink || docsSink(documentId);
     this.wpm = wpm;
     this.typoRate = typoRate;
     this.pauseLevel = pauseLevel;
@@ -128,7 +144,7 @@ export class HumanTypist {
   async emit(chunk) {
     await this.gate();
     const started = performance.now();
-    await appendText(this.documentId, chunk);
+    await this.sink.append(chunk);
     this.requests++;
     this.docChars += chunk.length;
     this.done += chunk.length;
@@ -142,7 +158,7 @@ export class HumanTypist {
   /** Type a wrong spelling, notice it, rub it out, and carry on. */
   async mistype(wrong) {
     await this.gate();
-    await appendText(this.documentId, wrong);
+    await this.sink.append(wrong);
     this.requests++;
     this.docChars += wrong.length;
     this.report('typing');
@@ -155,12 +171,12 @@ export class HumanTypist {
 
     const end = this.docChars + 1;     // body index just past the last character
     try {
-      await deleteRange(this.documentId, end - wrong.length, end);
+      await this.sink.remove(end - wrong.length, end);
     } catch (err) {
       // Our cursor drifted (someone else editing the doc?) - re-sync and retry.
-      this.docChars = await getBodyLength(this.documentId);
+      this.docChars = await this.sink.length();
       const resynced = this.docChars + 1;
-      await deleteRange(this.documentId, Math.max(1, resynced - wrong.length), resynced);
+      await this.sink.remove(Math.max(1, resynced - wrong.length), resynced);
     }
     this.requests++;
     this.docChars -= wrong.length;
@@ -171,7 +187,7 @@ export class HumanTypist {
     this.text = text;
     this.total = text.length;
     this.startedAt = Date.now();
-    this.docChars = await getBodyLength(this.documentId);
+    this.docChars = await this.sink.length();
     this.report('typing');
 
     const words = splitWords(text);

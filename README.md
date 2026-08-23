@@ -78,7 +78,8 @@ work from `file://`.
 python -m http.server 8000
 ```
 
-Then open <http://localhost:8000>.
+Then open <http://localhost:8000> for the landing page, or
+<http://localhost:8000/app.html> to go straight to the tool.
 
 ## Deploying
 
@@ -119,6 +120,10 @@ registered.
 
 [`src/typist.js`](src/typist.js) holds the model.
 
+- The engine writes through a **sink** — an object with `append`, `remove` and `length`. The
+  app passes one backed by the Google Docs API; the landing page passes one backed by a
+  `<div>`, which is why the demo in the hero is the real thing rather than a scripted
+  animation.
 - Text is split into words with their whitespace attached, then accumulated into a buffer.
 - Roughly every 1.6 seconds of "typing time" the buffer is flushed as one
   `documents.batchUpdate` → `insertText` call appended at the end of the body. Sending one
@@ -151,6 +156,9 @@ document and runs the real `typist.js` against it:
   character for character — this is what proves the `deleteContentRange` index maths.
 - **Test the .docx reader** parses `tests/fixture.docx` and checks the extracted text.
 
+Note that browsers throttle timers in hidden tabs, so leave the tab in front while a run is
+going — in the background the same self-test takes minutes instead of seconds.
+
 ## Things worth knowing
 
 - **Keep the tab in the foreground.** Browsers throttle timers in background tabs, which
@@ -169,8 +177,11 @@ document and runs the real `typist.js` against it:
 ## Layout
 
 ```
-index.html          UI
-assets/styles.css   styling
+index.html          landing page
+app.html            the tool itself
+assets/landing.css  landing page styling
+assets/styles.css   app styling
+src/demo.js         hero demo — the real engine, typing into a <div>
 src/config.js       client ID, scopes, rate cap
 src/auth.js         Google Identity Services token flow
 src/gdocs.js        Docs + Drive REST calls, retries, quota pacing
