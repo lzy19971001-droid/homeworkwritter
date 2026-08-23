@@ -92,6 +92,19 @@ Publishing is also where the domain comes up a second time, on a different scree
 origins above: the consent screen asks for an app homepage and a privacy policy URL, and wants
 `homeworkwritter.com` listed under **Authorised domains**.
 
+### "Error 403: access_denied" on sign-in
+
+> *homeworkwritter.com has not completed the Google verification process. The app is currently
+> being tested and can only be accessed by developer-approved testers.*
+
+This is Testing mode, not a verification problem — the message says "verification" for every
+app in Testing, whatever scopes it asks for. Either add the account under **Test users**, or
+press **Publish app**; both are on the **Audience** page of the Google Auth Platform section
+(**APIs & Services → OAuth consent screen** in the older console layout).
+
+If it still fails after adding a test user, check which Google account the browser is actually
+signed in as — the tester entry has to match that account exactly.
+
 ### Scopes, and why they are narrow
 
 | Scope | What it allows | Google's classification |
