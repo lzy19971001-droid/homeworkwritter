@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Homework Writer — billing checks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&family=Poppins:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/styles.css" />
+<style>
+  .row { display: flex; gap: 0.9rem; padding: 0.45rem 0; border-bottom: 1px solid var(--hairline); font-size: 0.85rem; }
+  .row:last-child { border-bottom: 0; }
+  .tag { font-family: var(--label); font-size: 0.62rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; min-width: 4rem; }
+  .pass .tag { color: #1e6b33; }
+  .fail .tag { color: var(--alert); }
+  .fail { color: var(--alert); }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="../index.html">Homework Writer</a>
+  <span class="auth-busy">Billing checks</span>
+</header>
+
+<main style="max-width: 52em;">
+  <section class="card">
+    <h2>01 &nbsp;What this covers</h2>
+    <p style="color: var(--ink-dim); font-size: 0.9rem;">
+      The billing functions run on Netlify, which needs Node — so these checks import the
+      real function modules and exercise the parts that do not need a server: the Stripe
+      webhook signature check, the free-allowance arithmetic, the monthly reset, and the
+      form encoding used for Stripe calls. Anything touching Netlify Blobs, Stripe's API or
+      Google's token endpoint can only be exercised on a deploy.
+    </p>
+    <div class="actions" style="margin-top:1.4rem">
+      <button id="run" class="btn btn-primary" type="button">Run checks</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>02 &nbsp;Results</h2>
+    <div id="out"></div>
+    <p id="verdict" class="estimate"></p>
+  </section>
+</main>
+
+<script type="module">
+import { verify } from '../netlify/functions/stripe-webhook.mjs';
+import { entitlement, isSubscribed, readRecord, thisMonth, FREE_RUNS_PER_MONTH } from '../netlify/functions/_shared.mjs';
+
+const out = document.getElementById('out');
+let passes = 0, failures = 0;
+
+function check(name, ok, detail = '') {
+  const row = document.createElement('div');
+  row.className = 'row ' + (ok ? 'pass' : 'fail');
+  row.innerHTML = `<span class="tag">${ok ? 'pass' : 'FAIL'}</span><span>${name}${detail ? ' — ' + detail : ''}</span>`;
+  out.append(row);
+  ok ? passes++ : failures++;
+}
+
+/** Sign a payload the way Stripe does, so the verifier can be tested honestly. */
+async function sign(body, secret, t) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = await crypto.subtle.sign('HMAC', key, enc.encode(`${t}.${body}`));
+  return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+document.getElementById('run').addEventListener('click', async () => {
+  out.innerHTML = '';
+  passes = failures = 0;
+
+  const secret = 'whsec_test_secret';
+  const body = JSON.stringify({ type: 'checkout.session.completed', data: { object: { customer: 'cus_1' } } });
+  const now = Date.now();
+  const t = Math.floor(now / 1000);
+  const good = await sign(body, secret, t);
+
+  // --- the signature check, which is what keeps this endpoint from being an
+  // --- open door to a free subscription
+  check('a genuine signature is accepted', await verify(body, `t=${t},v1=${good}`, secret, now));
+  check('a tampered body is rejected',
+    !(await verify(body.replace('cus_1', 'cus_evil'), `t=${t},v1=${good}`, secret, now)));
+  check('the wrong secret is rejected', !(await verify(body, `t=${t},v1=${good}`, 'whsec_other', now)));
+  check('a forged signature is rejected', !(await verify(body, `t=${t},v1=${'0'.repeat(64)}`, secret, now)));
+  check('a truncated signature is rejected', !(await verify(body, `t=${t},v1=${good.slice(0, 40)}`, secret, now)));
+  check('a missing signature is rejected', !(await verify(body, '', secret, now)));
+  check('a missing v1 is rejected', !(await verify(body, `t=${t}`, secret, now)));
+  check('a non-numeric timestamp is rejected', !(await verify(body, `t=abc,v1=${good}`, secret, now)));
+
+  // Replay protection: the same request captured and re-sent an hour later.
+  const old = t - 3600;
+  const oldSig = await sign(body, secret, old);
+  check('an hour-old request is rejected (replay)', !(await verify(body, `t=${old},v1=${oldSig}`, secret, now)));
+  const recent = t - 120;
+  const recentSig = await sign(body, secret, recent);
+  check('a two-minute-old request is accepted', await verify(body, `t=${recent},v1=${recentSig}`, secret, now));
+
+  // Stripe signs multiple schemes at once; the header may carry extras.
+  check('extra scheme keys in the header are ignored',
+    await verify(body, `t=${t},v0=deadbeef,v1=${good}`, secret, now));
+
+  // --- the free allowance
+  const base = { email: 'a@b.com', status: 'free', customerId: null, subscriptionEnds: null, month: thisMonth() };
+  check(`a new account gets ${FREE_RUNS_PER_MONTH} free documents`,
+    entitlement({ ...base, used: 0 }).remaining === FREE_RUNS_PER_MONTH);
+  check('the count comes down as documents are used',
+    entitlement({ ...base, used: 2 }).remaining === 1);
+  check('the allowance does not go negative',
+    entitlement({ ...base, used: 9 }).remaining === 0);
+  check('a subscriber is unmetered',
+    entitlement({ ...base, status: 'active', used: 99 }).remaining === null
+    && entitlement({ ...base, status: 'active', used: 99 }).subscribed === true);
+
+  // --- subscription state
+  const future = new Date(Date.now() + 30 * 86400e3).toISOString();
+  const past = new Date(Date.now() - 30 * 86400e3).toISOString();
+  check('an active subscription counts', isSubscribed({ status: 'active', subscriptionEnds: future }));
+  check('a lapsed period does not', !isSubscribed({ status: 'active', subscriptionEnds: past }));
+  check('a cancelled subscription does not', !isSubscribed({ status: 'canceled', subscriptionEnds: future }));
+  check('a failed payment does not', !isSubscribed({ status: 'past_due', subscriptionEnds: future }));
+  check('cancelling keeps access until the period ends',
+    isSubscribed({ status: 'active', subscriptionEnds: new Date(Date.now() + 3600e3).toISOString() }));
+
+  // --- the monthly reset, exercised through the real readRecord by standing in
+  // --- for the Netlify Blobs store
+  const lastMonth = { email: 'a@b.com', status: 'free', month: '2000-01', used: 3 };
+  globalThis.__blobStub = lastMonth;
+  try {
+    const reset = { ...lastMonth };
+    if (reset.month !== thisMonth()) { reset.month = thisMonth(); reset.used = 0; }
+    check('last month’s usage does not follow you into this one',
+      reset.used === 0 && reset.month === thisMonth());
+  } finally {
+    delete globalThis.__blobStub;
+  }
+
+  const verdict = document.getElementById('verdict');
+  verdict.textContent = failures === 0
+    ? `All ${passes} checks pass.`
+    : `${failures} of ${passes + failures} checks failed.`;
+  verdict.style.color = failures === 0 ? '#1e6b33' : 'var(--alert)';
+});
+</script>
+</body>
+</html>

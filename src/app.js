@@ -4,6 +4,7 @@ import { extractText } from './extract.js';
 import { HumanTypist, Stopped, estimateMs, formatDuration } from './typist.js';
 import { MAX_REQUESTS_PER_MINUTE } from './config.js';
 import { PROVIDERS, getKey, setKey, forgetAllKeys, loadModels, generate } from './ai.js';
+import { status as billingStatus, claimRun, startCheckout, openPortal, describe as describePlan } from './billing.js';
 
 const $ = (id) => document.getElementById(id);
 const el = {
@@ -21,6 +22,7 @@ const el = {
   aiProvider: $('aiProvider'), aiModel: $('aiModel'), aiKey: $('aiKey'), aiKeyLink: $('aiKeyLink'),
   aiForget: $('aiForget'), aiPrompt: $('aiPrompt'), aiGenerate: $('aiGenerate'), aiStop: $('aiStop'),
   aiStatus: $('aiStatus'), aiChat: $('aiChat'), aiClear: $('aiClear'),
+  planBadge: $('planBadge'), upgradeBtn: $('upgradeBtn'), manageBtn: $('manageBtn'),
 };
 
 const PAUSE_LABELS = ['off', 'normal', 'long', 'very long'];
@@ -67,6 +69,7 @@ onAuthChange(({ user, signedIn }) => {
     if (user.picture) el.avatar.src = user.picture; else el.avatar.classList.add('hidden');
   }
   refreshStart();
+  refreshPlan();
 });
 
 el.signIn.addEventListener('click', async () => {
@@ -420,6 +423,64 @@ function refreshStart() {
   }
 }
 
+/* ------------------------------------------------------------------ billing */
+
+/**
+ * Three documents a month for free, then a subscription. The count is kept by
+ * the server against the verified Google account, so clearing site data does not
+ * reset it. Where the billing functions are not deployed, everything below goes
+ * quiet and the app is unmetered — which is how it runs locally and for anyone
+ * self-hosting.
+ */
+const plan = { state: null };
+
+async function refreshPlan() {
+  if (!isSignedIn()) {
+    el.planBadge.textContent = '';
+    el.upgradeBtn.classList.add('hidden');
+    el.manageBtn.classList.add('hidden');
+    return;
+  }
+  plan.state = await billingStatus();
+  const label = describePlan(plan.state);
+  el.planBadge.textContent = label;
+  el.planBadge.classList.toggle('plan--out', !plan.state.subscribed && plan.state.remaining === 0);
+  el.upgradeBtn.classList.toggle('hidden', !!plan.state.unmetered || plan.state.subscribed);
+  el.manageBtn.classList.toggle('hidden', !plan.state.subscribed);
+}
+
+el.upgradeBtn.addEventListener('click', async () => {
+  el.upgradeBtn.disabled = true;
+  try {
+    await startCheckout();
+  } catch (err) {
+    log(describeError(err), true);
+    el.upgradeBtn.disabled = false;
+  }
+});
+
+el.manageBtn.addEventListener('click', async () => {
+  el.manageBtn.disabled = true;
+  try {
+    await openPortal();
+  } catch (err) {
+    log(describeError(err), true);
+    el.manageBtn.disabled = false;
+  }
+});
+
+// Coming back from Stripe: the webhook may land a moment after the redirect, so
+// give it a beat before asking again.
+const checkout = new URLSearchParams(location.search).get('checkout');
+if (checkout === 'done') {
+  log('Payment received — thank you. Activating your subscription…');
+  setTimeout(refreshPlan, 2500);
+  history.replaceState(null, '', location.pathname);
+} else if (checkout === 'cancelled') {
+  log('Checkout cancelled. Your free documents are untouched.');
+  history.replaceState(null, '', location.pathname);
+}
+
 /* ---------------------------------------------------------------- the run */
 
 el.start.addEventListener('click', run);
@@ -480,6 +541,25 @@ async function run() {
 
   try {
     if (!resuming) {
+      // Resuming an interrupted run does not cost a second document.
+      const claim = await claimRun();
+      if (!claim.allowed) {
+        log(claim.reason || 'Your free documents for this month are used up.', true);
+        await refreshPlan();
+        el.upgradeBtn.classList.remove('hidden');
+        el.upgradeBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        state.running = false;
+        el.pauseBtn.classList.add('hidden');
+        el.stop.classList.add('hidden');
+        refreshStart();
+        return;
+      }
+      if (!claim.unmetered && claim.remaining !== null && claim.remaining !== undefined) {
+        log(claim.remaining === 0
+          ? 'That was your last free document this month.'
+          : `${claim.remaining} free document${claim.remaining === 1 ? '' : 's'} left this month.`);
+      }
+
       const title = el.title.value.trim() || 'Homework';
       const folderName = el.folder.value.trim();
 
@@ -515,6 +595,7 @@ async function run() {
     log(`Typing ${toType.length.toLocaleString()} characters at about ${opts.wpm} wpm…`);
     const result = await typist.type(toType);
     log(`Done — ${result.chars.toLocaleString()} characters in ${formatDuration(result.ms)} across ${result.requests} edits.`);
+    refreshPlan();
     el.progressText.textContent = 'Finished';
     el.etaText.textContent = '';
   } catch (err) {

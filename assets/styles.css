@@ -68,6 +68,13 @@ code {
 
 main { max-width: var(--measure); margin: 0 auto; padding: 0 1.5rem 8rem; }
 
+.plan {
+  font-family: var(--label);
+  font-size: 0.64rem; font-weight: 500; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--ink-faint); white-space: nowrap;
+}
+.plan.plan--out { color: var(--alert); }
+
 /* ——— sections ——— */
 
 .card { padding: clamp(3.5rem, 8vh, 5.5rem) 0 0; }

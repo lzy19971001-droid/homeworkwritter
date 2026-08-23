@@ -5,6 +5,10 @@
   publish = "."
   command = ""
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
 # Keep the source readable rather than cached forever, so a push shows up at once.
 [[headers]]
   for = "/*"

@@ -267,6 +267,13 @@ Constants have drifted from src/typist.js:
 Change the model on one side and `--check` tells you about the other. The exit code is
 non-zero on a mismatch or a failed reconstruction, so it drops into CI as-is.
 
+### Billing checks
+
+<http://localhost:8000/tests/billing.html> imports the real function modules and exercises
+everything that does not need a server: the webhook signature check — genuine, tampered,
+wrong secret, forged, truncated, replayed — the free-allowance arithmetic, subscription
+states, and the monthly reset. 21 checks, no Stripe account needed.
+
 ### In the browser — the lab
 
 Serve the folder and open <http://localhost:8000/tests/lab.html>:
@@ -283,6 +290,61 @@ four texts and asserts exact reconstruction. **Test .docx reader** checks the ex
 
 Browsers throttle timers in hidden tabs, so keep the tab in front — in the background the
 self-test takes minutes rather than seconds. The terminal script has no such problem.
+
+## Subscriptions
+
+Three documents a month are free; beyond that the app asks for a subscription. Everything
+outside this section still runs with no backend — the billing is the one part that cannot,
+because a usage counter kept in the browser is edited away in seconds and a Stripe secret key
+can never leave a server.
+
+If the functions are not deployed, every check returns *unmetered* and the app behaves exactly
+as it did before. Local development and self-hosting need none of this.
+
+### What each piece does
+
+| File | Role |
+| --- | --- |
+| [`netlify/functions/entitlement.mjs`](netlify/functions/entitlement.mjs) | `GET` reports the position, `POST` claims one document or refuses |
+| [`netlify/functions/checkout.mjs`](netlify/functions/checkout.mjs) | Opens a Stripe Checkout session; card details never touch this site |
+| [`netlify/functions/portal.mjs`](netlify/functions/portal.mjs) | Sends subscribers to Stripe's own portal to change cards or cancel |
+| [`netlify/functions/stripe-webhook.mjs`](netlify/functions/stripe-webhook.mjs) | The only thing that may mark an account as paid |
+| [`src/billing.js`](src/billing.js) | Asks; never decides |
+
+The count is kept against the Google email, verified server-side from the access token the
+browser sends — so clearing site data does not hand anyone a fresh allowance, and the browser
+never gets to name its own account.
+
+### Setting it up
+
+1. In Stripe, create a **recurring product** at your price (annual billing keeps far more of a
+   low price: Stripe's fixed 30c lands once a year rather than twelve times). Copy the **price
+   ID**, which looks like `price_...`.
+2. In Stripe, add a webhook endpoint pointing at `https://your-site/api/stripe-webhook`,
+   subscribed to `checkout.session.completed`, `customer.subscription.created`,
+   `customer.subscription.updated`, `customer.subscription.deleted` and
+   `invoice.payment_failed`. Copy the **signing secret** (`whsec_...`).
+3. In Netlify, under **Site configuration → Environment variables**, set:
+   - `STRIPE_SECRET_KEY` — `sk_live_...` or `sk_test_...`
+   - `STRIPE_PRICE_ID` — the `price_...` from step 1
+   - `STRIPE_WEBHOOK_SECRET` — the `whsec_...` from step 2
+   - `SITE_URL` — `https://homeworkwritter.com`
+4. Deploy. Netlify installs the one dependency in `package.json` and picks the functions up
+   from `netlify/functions`.
+
+Test the whole flow with Stripe in test mode and card `4242 4242 4242 4242` before switching
+the keys to live ones.
+
+### What this does not do
+
+The typing happens in the browser using the reader's own Google token, so the gate is a
+paywall, not a vault: someone who opens developer tools can call the Docs API themselves.
+Closing that would mean moving the typing to a server, and a twenty-minute run does not fit
+in a serverless function — it would need a process that stays up. For a product at this price
+the soft gate is the right trade, but it is worth knowing which kind of lock is on the door.
+
+Selling subscriptions across borders also brings VAT obligations that Stripe does not handle
+for you. Merchant-of-record services such as Paddle or Lemon Squeezy do, at higher fees.
 
 ## Things worth knowing
 

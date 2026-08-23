@@ -1,0 +1,9 @@
+{
+  "name": "homeworkwritter",
+  "private": true,
+  "type": "module",
+  "description": "The site itself has no build step; this file exists only so Netlify installs the one dependency the billing functions need.",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}
