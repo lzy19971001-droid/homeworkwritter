@@ -17,7 +17,7 @@ class RateLimiter {
 
 const limiter = new RateLimiter(MAX_REQUESTS_PER_MINUTE);
 
-/** Raise or lower the quota pacing. Used by tests/simulate.html to run flat out. */
+/** Raise or lower the quota pacing. Used by tests/lab.html to run flat out. */
 export function setRateLimit(perMinute) { limiter.perMinute = perMinute; }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Homework Writer — typing lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&family=Poppins:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/styles.css" />
+<style>
+  .lab { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; gap: 2rem; align-items: start; }
+  @media (max-width: 860px) { .lab { grid-template-columns: 1fr; } }
+  #paper {
+    white-space: pre-wrap; min-height: 20rem; padding: 1.6rem 1.8rem;
+    border: 1px solid var(--hairline); background: var(--paper);
+    font-size: 0.95rem; line-height: 1.9; overflow: auto; max-height: 34rem;
+  }
+  #paper::after {
+    content: ""; display: inline-block; width: 1px; height: 1.05em;
+    margin-left: 2px; vertical-align: -0.18em; background: var(--ink);
+    animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.1rem 1rem; }
+  .metric dt {
+    font-family: var(--label); font-size: 0.6rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  .metric dd { font-family: var(--heading); font-size: 1.15rem; font-weight: 500; margin-top: 0.15rem; }
+  .trace {
+    margin-top: 1.4rem; max-height: 20rem; overflow: auto;
+    border-top: 1px solid var(--hairline); padding-top: 0.9rem;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.72rem; line-height: 1.75;
+  }
+  .trace div { display: flex; gap: 0.7rem; }
+  .trace .t { color: var(--ink-faint); min-width: 4.2rem; }
+  .trace .burst { color: var(--ink-dim); }
+  .trace .pause { color: #8a6d1f; }
+  .trace .typo, .trace .delete, .trace .fix { color: var(--alert); }
+  .verdict { font-weight: 500; }
+  .verdict.pass { color: #1e6b33; }
+  .verdict.fail { color: var(--alert); }
+  .bars { display: flex; align-items: flex-end; gap: 2px; height: 3.5rem; margin-top: 0.6rem; }
+  .bars i { flex: 1 1 auto; background: var(--ink-faint); min-width: 2px; }
+  .bars i.gap { background: #d9c48a; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="../index.html">Homework Writer</a>
+  <span id="mode" class="auth-busy">Typing lab</span>
+</header>
+
+<main style="max-width: 62em;">
+  <section class="card">
+    <h2>01 &nbsp;What to write</h2>
+    <p style="color: var(--ink-dim); font-size: 0.9rem; margin-bottom: 1.4rem;">
+      No Google account and no network. The Docs API is replaced with an in-page document, so
+      this drives the real <code>typist.js</code> — the same bursts, hesitations, typos and
+      index arithmetic the live app uses — and then checks the result matches the source
+      character for character.
+    </p>
+    <textarea id="src" rows="5">The Treaty of Versailles was signed in June 1919, formally ending the First World War. Its terms placed responsibility for the conflict on Germany and required substantial reparations.
+
+Historians remain divided on whether those terms made a second war inevitable, or whether the economic collapse of the following decade mattered more. Photosynthesis is unrelated, but it is a long word worth timing.</textarea>
+    <div class="counts"><span id="srcCounts"></span></div>
+  </section>
+
+  <section class="card">
+    <h2>02 &nbsp;How to type it</h2>
+    <div class="grid">
+      <label class="field">
+        <span>Speed <output id="wpmOut">70</output> wpm</span>
+        <input id="wpm" type="range" min="15" max="140" step="5" value="70" />
+      </label>
+      <label class="field">
+        <span>Typos <output id="typoOut">8</output>%</span>
+        <input id="typo" type="range" min="0" max="60" step="1" value="8" />
+      </label>
+      <label class="field">
+        <span>Pauses <output id="pauseOut">normal</output></span>
+        <input id="pause" type="range" min="0" max="3" step="1" value="1" />
+      </label>
+      <label class="field">
+        <span>Time scale <output id="scaleOut">1</output>×</span>
+        <input id="scale" type="range" min="1" max="60" step="1" value="1" />
+      </label>
+    </div>
+    <p class="estimate" id="estimate"></p>
+  </section>
+
+  <section class="card">
+    <h2>03 &nbsp;Watch it</h2>
+    <div class="actions" style="margin-bottom: 1.6rem;">
+      <button id="run" class="btn btn-primary" type="button">Run</button>
+      <button id="stop" class="btn btn-danger hidden" type="button">Stop</button>
+      <button id="selftest" class="btn" type="button">Self-test</button>
+      <button id="docx" class="btn btn-ghost" type="button">Test .docx reader</button>
+    </div>
+
+    <div class="lab">
+      <div>
+        <div id="paper"></div>
+        <p id="verdict" class="estimate"></p>
+      </div>
+      <div>
+        <dl class="metrics">
+          <div class="metric"><dt>Elapsed</dt><dd id="mElapsed">—</dd></div>
+          <div class="metric"><dt>Modelled wpm</dt><dd id="mWpm">—</dd></div>
+          <div class="metric"><dt>Bursts</dt><dd id="mBursts">—</dd></div>
+          <div class="metric"><dt>Typos</dt><dd id="mTypos">—</dd></div>
+          <div class="metric"><dt>Fixed at once</dt><dd id="mNow">—</dd></div>
+          <div class="metric"><dt>Fixed later</dt><dd id="mLate">—</dd></div>
+          <div class="metric"><dt>Pauses</dt><dd id="mPauses">—</dd></div>
+          <div class="metric"><dt>Longest pause</dt><dd id="mLongest">—</dd></div>
+        </dl>
+        <div class="bars" id="bars" title="Typing rhythm: each bar is one burst, gold bars are pauses"></div>
+        <div class="trace" id="trace"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { HumanTypist, estimateMs, formatDuration, splitWords, wordEase } from '../src/typist.js';
+import { setRateLimit } from '../src/gdocs.js';
+import { setClientId } from '../src/auth.js';
+
+const $ = (id) => document.getElementById(id);
+const paper = $('paper'), verdict = $('verdict'), trace = $('trace'), bars = $('bars');
+
+/* A stand-in for the Google Docs API. `doc` is the body text; a real Doc always
+   ends with an undeletable newline, so index 1 is the first character and the
+   body end index is doc.length + 2 — the same arithmetic typist.js relies on.
+   Every range is bounds-checked, so a bad index fails loudly here rather than
+   silently corrupting a real document. */
+let doc = '';
+const sink = {
+  async append(text) { doc += text; paper.textContent = doc; },
+  async remove(startIndex, endIndex) {
+    if (startIndex < 1 || endIndex > doc.length + 1 || startIndex >= endIndex) {
+      throw new Error(`bad range ${startIndex}..${endIndex} for a body of ${doc.length}`);
+    }
+    doc = doc.slice(0, startIndex - 1) + doc.slice(endIndex - 1);
+    paper.textContent = doc;
+  },
+  async length() { return doc.length; },
+};
+
+// The auth and quota layers are not what this page is testing.
+setClientId('lab.apps.googleusercontent.com', { persist: false });
+setRateLimit(1e6);
+
+const PAUSE_LABELS = ['off', 'normal', 'long', 'very long'];
+let typist = null;
+
+function opts() {
+  return {
+    wpm: +$('wpm').value,
+    typoRate: +$('typo').value / 100,
+    pauseLevel: +$('pause').value,
+    timeScale: +$('scale').value,
+  };
+}
+
+function refresh() {
+  $('wpmOut').value = $('wpm').value;
+  $('typoOut').value = $('typo').value;
+  $('pauseOut').value = PAUSE_LABELS[+$('pause').value];
+  $('scaleOut').value = $('scale').value;
+  const text = $('src').value.trim();
+  const words = (text.match(/\S+/g) || []).length;
+  $('srcCounts').textContent = `${text.length} characters · ${words} words`;
+  const ms = estimateMs(text, opts());
+  $('estimate').textContent =
+    `Estimated ${formatDuration(ms)} at 1×, about ${formatDuration(ms / +$('scale').value)} at ${$('scale').value}×.`;
+}
+for (const id of ['wpm', 'typo', 'pause', 'scale']) $(id).addEventListener('input', refresh);
+$('src').addEventListener('input', refresh);
+refresh();
+
+function addTrace(evt, t0) {
+  const row = document.createElement('div');
+  const at = ((performance.now() - t0) / 1000).toFixed(1) + 's';
+  let detail = '';
+  if (evt.type === 'burst') detail = `+${evt.chars} ${JSON.stringify(evt.text.slice(0, 28))}`;
+  else if (evt.type === 'pause') detail = `${evt.reason} ${evt.ms}ms`;
+  else if (evt.type === 'typo') detail = `${evt.mode}: ${evt.right} → ${evt.wrong}`;
+  else if (evt.type === 'delete') detail = `−${evt.chars}`;
+  else if (evt.type === 'fix') detail = `retyped ${evt.chars}`;
+  row.innerHTML = `<span class="t">${at}</span><span class="${evt.type}">${evt.type}</span><span>${detail.replace(/</g, '&lt;')}</span>`;
+  trace.append(row);
+  trace.scrollTop = trace.scrollHeight;
+
+  if (evt.type === 'burst' || evt.type === 'pause') {
+    const bar = document.createElement('i');
+    bar.style.height = `${Math.min(100, (evt.ms / 40))}%`;
+    if (evt.type === 'pause') bar.className = 'gap';
+    bars.append(bar);
+    while (bars.children.length > 90) bars.firstChild.remove();
+  }
+}
+
+function showStats(result, timeScale = 1) {
+  $('mElapsed').textContent = (result.ms / 1000).toFixed(1) + 's';
+  // Running at 30x makes the wall clock 30x shorter; divide back out so this
+  // reads as the speed the model actually produced, comparable to the target.
+  $('mWpm').textContent = Math.round(result.effectiveWpm / timeScale);
+  $('mBursts').textContent = result.bursts;
+  $('mTypos').textContent = result.typos;
+  $('mNow').textContent = result.immediateFixes;
+  $('mLate').textContent = result.delayedFixes;
+  $('mPauses').textContent = result.pauses;
+  $('mLongest').textContent = Math.round(result.longestPauseMs) + 'ms';
+}
+
+$('stop').addEventListener('click', () => typist?.stop());
+
+$('run').addEventListener('click', async () => {
+  const text = $('src').value.trim();
+  doc = ''; paper.textContent = ''; trace.textContent = ''; bars.textContent = '';
+  verdict.textContent = 'Running…'; verdict.className = 'estimate';
+  $('run').disabled = true; $('stop').classList.remove('hidden');
+
+  const t0 = performance.now();
+  typist = new HumanTypist({ sink, ...opts(), onEvent: (e) => addTrace(e, t0) });
+  try {
+    const result = await typist.type(text);
+    showStats(result, +$('scale').value);
+    const ok = doc === text;
+    verdict.textContent = ok
+      ? `Document matches the source exactly — ${doc.length} characters, ${result.requests} edits.`
+      : `MISMATCH — document is ${doc.length} characters, source is ${text.length}.`;
+    verdict.className = 'estimate verdict ' + (ok ? 'pass' : 'fail');
+  } catch (err) {
+    verdict.textContent = err.name === 'Stopped' ? 'Stopped.' : `Error — ${err.message}`;
+    verdict.className = 'estimate verdict fail';
+  } finally {
+    $('run').disabled = false; $('stop').classList.add('hidden');
+  }
+});
+
+/* Correctness sweep. Runs flat out with pauses off, over configurations chosen
+   to hammer the delete-and-retype paths, and asserts exact reconstruction. */
+$('selftest').addEventListener('click', async () => {
+  trace.textContent = ''; bars.textContent = '';
+  const cases = [
+    ['plain', { typoRate: 0, pauseLevel: 0 }],
+    ['typos 30%', { typoRate: 0.3, pauseLevel: 0 }],
+    ['typos 100%', { typoRate: 1, pauseLevel: 0 }],
+    ['typos 100% + pauses', { typoRate: 1, pauseLevel: 1 }],
+  ];
+  const texts = [
+    $('src').value.trim(),
+    'Short one.',
+    'a b c d e f g h i j k l m n o p q r s t',
+    'Multi\n\nparagraph\n\ntext with  odd   spacing and a tab\tinside.',
+  ];
+  let allOk = true;
+  const line = (msg, cls) => {
+    const row = document.createElement('div');
+    row.innerHTML = `<span class="t"></span><span class="${cls}">${msg}</span>`;
+    trace.append(row); trace.scrollTop = trace.scrollHeight;
+  };
+  line(`splitWords round-trip: ${texts.every(t => splitWords(t).join('') === t) ? 'PASS' : 'FAIL'}`, 'burst');
+  line(`wordEase bounds: ${texts.join(' ').split(/\s+/).every(w => { const e = wordEase(w); return e >= 0.5 && e <= 1.6; }) ? 'PASS' : 'FAIL'}`, 'burst');
+
+  for (const [label, cfg] of cases) {
+    for (const [i, text] of texts.entries()) {
+      doc = ''; paper.textContent = '';
+      try {
+        const r = await new HumanTypist({ sink, wpm: 20000, timeScale: 400, ...cfg }).type(text);
+        const ok = doc === text;
+        allOk = allOk && ok;
+        line(`${label} / text ${i + 1}: ${ok ? 'PASS' : 'FAIL'} — ${r.typos} typos, ${r.immediateFixes} now, ${r.delayedFixes} later, ${r.deletes} deletes`, ok ? 'burst' : 'fail');
+        if (!ok) line(`  got  ${JSON.stringify(doc.slice(0, 90))}`, 'fail');
+      } catch (err) {
+        allOk = false;
+        line(`${label} / text ${i + 1}: ERROR — ${err.message}`, 'fail');
+      }
+    }
+  }
+  verdict.textContent = allOk ? 'All configurations reconstruct the source exactly.' : 'Some configurations failed.';
+  verdict.className = 'estimate verdict ' + (allOk ? 'pass' : 'fail');
+});
+
+$('docx').addEventListener('click', async () => {
+  const { extractText } = await import('../src/extract.js');
+  const expected = [
+    'Essay title', 'First run and second run.', '\tIndented line', 'after a break.', '',
+    'Final paragraph with an & ampersand.',
+  ].join('\n');
+  try {
+    const blob = await (await fetch('./fixture.docx')).blob();
+    const text = await extractText(new File([blob], 'fixture.docx'));
+    const ok = text === expected;
+    verdict.textContent = `.docx reader: ${ok ? 'PASS' : 'FAIL — ' + JSON.stringify(text)}`;
+    verdict.className = 'estimate verdict ' + (ok ? 'pass' : 'fail');
+  } catch (err) {
+    verdict.textContent = `.docx reader: ERROR — ${err.message}`;
+    verdict.className = 'estimate verdict fail';
+  }
+});
+</script>
+</body>
+</html>

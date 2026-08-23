@@ -31,7 +31,11 @@ const SYSTEM = `You are drafting prose that will be typed straight into a Google
 Return only the finished text. No preamble, no sign-off, no commentary about what
 you wrote. Use plain prose: no markdown, no "#" headings, no "**" bold, no bullet
 characters unless the user explicitly asks for a list. Separate paragraphs with a
-blank line. Write in the register the user asks for, and match any length they give.`;
+blank line. Write in the register the user asks for, and match any length they give.
+
+This is a conversation: when asked to revise, return the full revised text rather
+than describing the change or sending only the edited part. Whatever you return is
+what gets typed into the document.`;
 
 /** Anthropic — via the official SDK, loaded as an ES module with no build step. */
 async function anthropicClient(apiKey) {
@@ -54,13 +58,13 @@ export const PROVIDERS = {
       return out;
     },
 
-    async generate({ apiKey, model, prompt, onDelta, signal }) {
+    async generate({ apiKey, model, messages, onDelta, signal }) {
       const client = await anthropicClient(apiKey);
       const stream = client.beta.messages.stream({
         model,
         max_tokens: 16000,
         system: SYSTEM,
-        messages: [{ role: 'user', content: prompt }],
+        messages: messages.map((m) => ({ role: m.role, content: m.text })),
         thinking: { type: 'adaptive' },
         // Routes around a safety refusal instead of returning nothing.
         betas: ['server-side-fallback-2026-07-01'],
@@ -95,13 +99,16 @@ export const PROVIDERS = {
       return (data.data || []).map((m) => m.id).filter((id) => /^(gpt|o\d)/.test(id)).sort();
     },
 
-    async generate({ apiKey, model, prompt, signal }) {
+    async generate({ apiKey, model, messages, signal }) {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model,
-          messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: prompt }],
+          messages: [
+            { role: 'system', content: SYSTEM },
+            ...messages.map((m) => ({ role: m.role, content: m.text })),
+          ],
         }),
         signal,
       });
@@ -128,14 +135,18 @@ export const PROVIDERS = {
         .sort();
     },
 
-    async generate({ apiKey, model, prompt, signal }) {
+    async generate({ apiKey, model, messages, signal }) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: SYSTEM }] },
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          // Gemini calls the assistant role "model".
+          contents: messages.map((m) => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.text }],
+          })),
         }),
         signal,
       });

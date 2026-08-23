@@ -97,24 +97,19 @@
           </p>
         </div>
 
-        <label class="field">
-          <span>What should it write?</span>
-          <textarea id="aiPrompt" rows="4" placeholder="A 600-word essay on the causes of the First World War, for a Year 10 history class."></textarea>
-        </label>
-
-        <div class="actions">
-          <button id="aiGenerate" class="btn btn-primary" type="button">Generate</button>
-          <button id="aiStop" class="btn btn-danger hidden" type="button">Stop</button>
-          <span id="aiStatus" class="ai__status"></span>
+        <div id="aiChat" class="chat" aria-live="polite">
+          <p class="chat__empty">Ask for a draft. Then keep talking — "make it longer",
+             "more formal", "cut the last paragraph" — and send whichever reply you want
+             typed into the document.</p>
         </div>
 
-        <div id="aiResultWrap" class="ai__result hidden">
-          <div class="ai__output" id="aiOutput"></div>
-          <div class="ai__side">
-            <button id="aiType" class="btn btn-primary" type="button">Type into a Doc</button>
-            <button id="aiUse" class="btn" type="button">Send to editor</button>
-            <button id="aiRegenerate" class="btn btn-ghost" type="button">Regenerate</button>
-            <span id="aiCounts" class="ai__counts"></span>
+        <div class="chat__composer">
+          <textarea id="aiPrompt" rows="2" placeholder="A 600-word essay on the causes of the First World War, for a Year 10 history class."></textarea>
+          <div class="chat__composer-actions">
+            <button id="aiGenerate" class="btn btn-primary" type="button">Send</button>
+            <button id="aiStop" class="btn btn-danger hidden" type="button">Stop</button>
+            <button id="aiClear" class="btn btn-ghost" type="button">New chat</button>
+            <span id="aiStatus" class="ai__status"></span>
           </div>
         </div>
       </div>

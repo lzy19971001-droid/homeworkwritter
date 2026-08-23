@@ -195,35 +195,23 @@ fails, the code re-reads the real length from the API and retries.
 
 ## Testing without a Google account
 
-Open <http://localhost:8000/tests/simulate.html>. It swaps the Docs API for an in-page mock
-document and runs the real `typist.js` against it:
+Open <http://localhost:8000/tests/lab.html>. The Docs API is replaced with an in-page
+document, so the lab drives the real `typist.js` — same bursts, hesitations, typos and index
+arithmetic as the live app — with no network and no account.
 
-- **Run simulation** types the sample text at 70 wpm so you can watch the pacing, the
-  hesitations and the typo corrections happen live.
-- **Run 200x speed self-test** replays four configurations (including one where *every*
-  eligible word is mistyped first) and asserts the finished document matches the source
-  character for character — this is what proves the `deleteContentRange` index maths.
-- **Test the .docx reader** parses `tests/fixture.docx` and checks the extracted text.
+- **Run** types the sample text at the chosen settings and shows what the engine is doing:
+  live metrics (modelled wpm, bursts, typos, immediate vs delayed fixes, pause count and the
+  longest one), a rhythm strip where each bar is a burst and gold bars are pauses, and a
+  timestamped trace of every event.
+- **Time scale** compresses the wait between keystrokes by up to 60x, so a twenty-minute run
+  can be inspected in twenty seconds. It only divides the sleeps — the sequence of edits is
+  identical.
+- **Self-test** replays four configurations across four texts, including one where every
+  eligible word is mistyped first, and asserts the finished document matches the source
+  character for character. This is what proves the delete-and-retype arithmetic.
+- **Test .docx reader** parses `tests/fixture.docx` and checks the extracted text.
 
-Note that browsers throttle timers in hidden tabs, so leave the tab in front while a run is
-going — in the background the same self-test takes minutes instead of seconds.
-
-## Drafting with an AI model
-
-The app's third input tab generates text with Claude, OpenAI or Gemini and hands it to the
-typing pipeline — the draft appears with **Type into a Doc** and **Send to editor** beside it.
-
-**Everyone brings their own API key.** There is no server here to hold one, so the key is
-entered in the page, kept in that browser's `localStorage`, and sent straight to the provider.
-This is the one place the no-backend design costs something: a key in a browser is visible to
-anyone with access to that browser, and Anthropic's SDK requires `dangerouslyAllowBrowser` to
-permit it at all. It is reasonable here because the key belongs to the person sitting at the
-machine — it would not be reasonable if one key were shared with visitors.
-
-Model lists are fetched from each provider using the entered key rather than hard-coded, so
-they cannot go stale; a short static list stands in until a key is present. Claude runs through
-the official `@anthropic-ai/sdk`, loaded as an ES module from a CDN so the no-build-step
-property survives, and streams so the draft appears as it is written.
+Browsers throttle timers in hidden tabs, so leave the tab in front while a run is going.
 
 ## Things worth knowing
 
@@ -254,7 +242,7 @@ src/gdocs.js        Docs + Drive REST calls, retries, quota pacing
 src/extract.js      file → text (incl. in-browser .docx unzip)
 src/typist.js       the human typing model
 src/app.js          UI wiring and the run loop
-tests/simulate.html offline simulator + self-tests (no Google account needed)
+tests/lab.html offline simulator + self-tests (no Google account needed)
 tests/fixture.docx  sample .docx for the extractor test
 ```
 

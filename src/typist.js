@@ -3,6 +3,7 @@ import { appendText, deleteRange, getBodyLength } from './gdocs.js';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (a, b) => a + Math.random() * (b - a);
 const chance = (p) => Math.random() < p;
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 export class Stopped extends Error {
   constructor() { super('Stopped by user.'); this.name = 'Stopped'; }
@@ -10,11 +11,11 @@ export class Stopped extends Error {
 
 /**
  * Where the typing goes. The app passes the Google Doc sink below; the landing
- * page passes one backed by a `<div>`, so the demo you see there is this exact
- * engine rather than a lookalike animation.
+ * page and the lab pass ones backed by a DOM node, so what you watch there is
+ * this exact engine rather than a lookalike animation.
  *
- * `length` returns the character count; positions follow the Docs API, where the
- * first character sits at index 1.
+ * `length` returns the character count; positions follow the Docs API, where
+ * the first character sits at index 1.
  */
 export const docsSink = (documentId) => ({
   append: (text) => appendText(documentId, text),
@@ -42,8 +43,7 @@ this but his by from they we say her she or an will my one all would there their
 if about who get which go me when make can like time no just him know take people into year your
 good some could them see other than then now look only come its over think also back after use
 two how our work first well way even new want because any these give day most us is are was were
-been has had did does said them where why while much many such own same each few more other them
-i'm it's don't that's is not and the of a to in`.split(/\s+/).filter(Boolean));
+been has had did does said where while much many such own same each few more`.split(/\s+/).filter(Boolean));
 
 /**
  * How quickly a given word comes out, as a multiplier on the target speed.
@@ -61,12 +61,12 @@ export function wordEase(word) {
   else if (bare.length >= 10) ease *= 0.74;
   else if (bare.length >= 8) ease *= 0.86;
 
-  if (/\d/.test(bare)) ease *= 0.7;                      // figures need looking at
-  if (/[A-Z]{2,}/.test(bare)) ease *= 0.72;               // acronyms, shift-key work
+  if (/\d/.test(bare)) ease *= 0.7;                                  // figures need looking at
+  if (/[A-Z]{2,}/.test(bare)) ease *= 0.72;                          // acronyms, shift-key work
   else if (/^[A-Z]/.test(bare) && !COMMON.has(lower)) ease *= 0.85;  // proper nouns
   // Accented letters, dashes and curly quotes: awkward keys, or none at all.
   for (const ch of word) { if (ch.codePointAt(0) > 127) { ease *= 0.7; break; } }
-  if (/[()";:\[\]{}]/.test(word)) ease *= 0.88;           // reaching for punctuation
+  if (/[()";:[\]{}]/.test(word)) ease *= 0.88;                       // reaching for punctuation
 
   return Math.min(1.6, Math.max(0.5, ease));
 }
@@ -84,9 +84,7 @@ export function splitWords(text) {
   return text.match(/\s*\S+\s*|\s+/g) || [];
 }
 
-/**
- * Predicted wall-clock duration, so the UI can warn before a 40-minute run.
- */
+/** Predicted wall-clock duration, so the UI can warn before a 40-minute run. */
 export function estimateMs(text, { wpm = 55, typoRate = 0.03, pauseLevel = 1, maxRpm = 45 } = {}) {
   if (!text) return 0;
   const speed = cps(wpm);
@@ -122,21 +120,27 @@ export function formatDuration(ms) {
 export class HumanTypist {
   /**
    * @param {object} opts
-   * @param {string} opts.documentId  target Google Doc
-   * @param {number} opts.wpm         target typing speed
-   * @param {number} opts.typoRate    probability a long word is mistyped first
-   * @param {number} opts.pauseLevel  0 none ... 3 very hesitant
-   * @param {function} opts.onProgress ({done, total, requests, etaMs, state})
-   * @param {function} opts.onLog     (message, isError)
+   * @param {string} [opts.documentId]  target Google Doc (or pass a sink)
+   * @param {object} [opts.sink]        append / remove / length
+   * @param {number} opts.wpm           target typing speed
+   * @param {number} opts.typoRate      probability a word is mistyped first
+   * @param {number} opts.pauseLevel    0 none ... 3 very hesitant
+   * @param {number} [opts.timeScale]   divides every wait; for local testing only
+   * @param {function} [opts.onProgress] ({done, total, requests, etaMs, state})
+   * @param {function} [opts.onEvent]   trace hook: ({type, ...}) for the lab
    */
-  constructor({ documentId = null, sink = null, wpm = 55, typoRate = 0.03, pauseLevel = 1,
-                onProgress = () => {}, onLog = () => {} }) {
+  constructor({
+    documentId = null, sink = null, wpm = 55, typoRate = 0.03, pauseLevel = 1,
+    timeScale = 1, onProgress = () => {}, onEvent = () => {}, onLog = () => {},
+  }) {
     this.documentId = documentId;
     this.sink = sink || docsSink(documentId);
     this.wpm = wpm;
     this.typoRate = typoRate;
     this.pauseLevel = pauseLevel;
+    this.timeScale = Math.max(1, timeScale);
     this.onProgress = onProgress;
+    this.onEvent = onEvent;
     this.onLog = onLog;
 
     this.paused = false;
@@ -148,6 +152,8 @@ export class HumanTypist {
     this.startedAt = 0;
     this.drift = 1;         // per-paragraph speed wobble
     this.text = '';
+
+    this.stats = { bursts: 0, typos: 0, immediateFixes: 0, delayedFixes: 0, deletes: 0, pauses: 0, pauseMs: 0, longestPauseMs: 0 };
   }
 
   pause() { this.paused = true; }
@@ -166,13 +172,25 @@ export class HumanTypist {
 
   /** Sleep in slices so Pause and Stop stay responsive during long pauses. */
   async wait(ms) {
-    const until = Date.now() + ms;
+    const scaled = ms / this.timeScale;
+    const until = Date.now() + scaled;
     for (;;) {
       await this.gate();
       const left = until - Date.now();
       if (left <= 0) return;
       await sleep(Math.min(left, 200));
     }
+  }
+
+  /** A deliberate pause, recorded so the lab can show the rhythm. */
+  async hesitate(ms, reason) {
+    if (ms <= 0) return;
+    this.stats.pauses++;
+    this.stats.pauseMs += ms;
+    this.stats.longestPauseMs = Math.max(this.stats.longestPauseMs, ms);
+    this.onEvent({ type: 'pause', reason, ms: Math.round(ms) });
+    this.report('thinking');
+    await this.wait(ms);
   }
 
   report(state) {
@@ -183,54 +201,84 @@ export class HumanTypist {
   }
 
   /**
-   * One API call's worth of characters. The caller passes the time these
-   * particular words should have taken — summed per word, so the pace inside a
-   * burst reflects which words they were, not just how many characters.
+   * Speed envelope over the whole run: hands warm up over the first stretch,
+   * then tire slightly on a long piece. Multiplies the per-word ease.
    */
-  async emit(chunk, budgetMs) {
+  stamina() {
+    const warmUp = Math.min(1, 0.82 + (this.done / 240) * 0.18);
+    const fatigue = this.done > 3000 ? Math.max(0.88, 1 - (this.done - 3000) / 40000) : 1;
+    return warmUp * fatigue;
+  }
+
+  /** How long one word should take, given how awkward it is to type. */
+  wordMs(text, ease) {
+    return (text.length / (cps(this.wpm) * ease * this.drift * this.stamina())) * 1000 * rand(0.82, 1.22);
+  }
+
+  /**
+   * One API call's worth of characters. `sourceLen` is how much of the source
+   * this represents — it differs from `chunk.length` while a misspelling is
+   * standing in for the real word.
+   */
+  async emit(chunk, budgetMs, sourceLen = chunk.length) {
     await this.gate();
     const started = performance.now();
     await this.sink.append(chunk);
     this.requests++;
+    this.stats.bursts++;
     this.docChars += chunk.length;
-    this.done += chunk.length;
+    this.done += sourceLen;
+    this.onEvent({ type: 'burst', chars: chunk.length, text: chunk, ms: Math.round(budgetMs) });
 
     const spent = performance.now() - started;
     if (budgetMs > spent) await this.wait(budgetMs - spent);
     this.report('typing');
   }
 
-  /** How long one word should take, given how awkward it is to type. */
-  wordMs(text, ease) {
-    return (text.length / (cps(this.wpm) * ease * this.drift)) * 1000 * rand(0.82, 1.22);
-  }
-
-  /** Type a wrong spelling, notice it, rub it out, and carry on. */
-  async mistype(wrong) {
-    await this.gate();
-    await this.sink.append(wrong);
-    this.requests++;
-    this.docChars += wrong.length;
-    this.report('typing');
-
-    // The moment of noticing: a fast typist catches it sooner, and the hesitancy
-    // setting stretches it, but even "no pauses" leaves a beat for the backspace.
-    const notice = Math.min(2.5, Math.max(0.05, 55 / this.wpm))
-      * Math.max(0.3, PAUSE_MULTIPLIER[this.pauseLevel] ?? 1);
-    await this.wait(rand(220, 900) * notice);
-
-    const end = this.docChars + 1;     // body index just past the last character
+  /** Remove the last `n` characters, re-syncing from the API if the index drifted. */
+  async removeTail(n) {
+    const end = this.docChars + 1;
     try {
-      await this.sink.remove(end - wrong.length, end);
-    } catch (err) {
-      // Our cursor drifted (someone else editing the doc?) - re-sync and retry.
+      await this.sink.remove(end - n, end);
+    } catch {
       this.docChars = await this.sink.length();
       const resynced = this.docChars + 1;
-      await this.sink.remove(Math.max(1, resynced - wrong.length), resynced);
+      await this.sink.remove(Math.max(1, resynced - n), resynced);
     }
     this.requests++;
-    this.docChars -= wrong.length;
-    await this.wait(rand(90, 320) * notice);
+    this.stats.deletes++;
+    this.docChars -= n;
+    this.onEvent({ type: 'delete', chars: n });
+  }
+
+  /** How long it takes to spot a mistake: faster typists catch them sooner. */
+  noticeScale() {
+    return Math.min(2.5, Math.max(0.05, 55 / this.wpm))
+      * Math.max(0.3, PAUSE_MULTIPLIER[this.pauseLevel] ?? 1);
+  }
+
+  /** Type a wrong spelling, notice it straight away, rub it out, carry on. */
+  async mistypeNow(wrong, correctLen) {
+    await this.emit(wrong, this.wordMs(wrong, wordEase(wrong)), correctLen);
+    await this.hesitate(rand(220, 900) * this.noticeScale(), 'spotted-typo');
+    await this.removeTail(wrong.length);
+    this.done -= correctLen;
+    this.stats.immediateFixes++;
+    await this.wait(rand(90, 320) * this.noticeScale());
+  }
+
+  /**
+   * The other way people fix things: carry on for a word or two, notice the
+   * mistake sitting back there, then wipe out everything since and retype it.
+   */
+  async fixDelayed(fix) {
+    await this.hesitate(rand(300, 1200) * this.noticeScale(), 'spotted-typo-late');
+    await this.removeTail(this.docChars - fix.docStart);
+    this.done -= fix.source.length;
+    this.stats.delayedFixes++;
+    await this.wait(rand(120, 400) * this.noticeScale());
+    await this.emit(fix.source, this.wordMs(fix.source, wordEase(fix.source)));
+    this.onEvent({ type: 'fix', mode: 'delayed', chars: fix.source.length });
   }
 
   async type(text) {
@@ -250,6 +298,7 @@ export class HumanTypist {
     let burst = burstTarget();
     let sinceThought = 0;
     let nextThought = rand(14, 42);
+    let fix = null;               // a mistake left standing, to be fixed shortly
 
     const flush = async () => {
       if (!buffer) return;
@@ -264,6 +313,22 @@ export class HumanTypist {
       const core = token.trim();
       const ease = wordEase(core);
 
+      // Already carrying a mistake: keep typing, then go back for it.
+      if (fix) {
+        buffer += token;
+        budget += this.wordMs(token, ease);
+        fix.source += token;
+        if (--fix.wordsLeft <= 0) {
+          await flush();
+          await this.fixDelayed(fix);
+          fix = null;
+        } else if (buffer.length >= burst) {
+          await flush();
+          burst = burstTarget();
+        }
+        continue;
+      }
+
       // A word that is slower to type is also likelier to come out wrong.
       const typoOdds = Math.min(this.typoRate * 4, this.typoRate / ease);
       const wrong = core.length >= 4 && chance(typoOdds) ? corrupt(core) : null;
@@ -271,8 +336,7 @@ export class HumanTypist {
       // Awkward words get a beat of hesitation before the hands start moving.
       if (pauseM > 0 && ease <= 0.72 && chance(0.3)) {
         await flush();
-        this.report('thinking');
-        await this.wait(rand(250, 900) * pauseM);
+        await this.hesitate(rand(250, 900) * pauseM, 'hard-word');
       }
 
       if (wrong && wrong !== core) {
@@ -284,9 +348,21 @@ export class HumanTypist {
           buffer = '';
           budget = 0;
         }
-        await this.mistype(wrong);
-        buffer = core + trail;
-        budget = this.wordMs(core + trail, ease);
+        this.stats.typos++;
+
+        if (chance(0.35)) {
+          // Noticed later: type it wrong and keep going for a word or two.
+          this.onEvent({ type: 'typo', mode: 'delayed', wrong, right: core });
+          // Credit the whole token, trailing space included: the fix deletes and
+          // retypes the entire span, so the two must account for the same text.
+          await this.emit(wrong, this.wordMs(wrong, ease), core.length + trail.length);
+          fix = { docStart: this.docChars - wrong.length, source: core + trail, wordsLeft: Math.round(rand(1, 3)) };
+        } else {
+          this.onEvent({ type: 'typo', mode: 'immediate', wrong, right: core });
+          await this.mistypeNow(wrong, core.length);
+          buffer = core + trail;
+          budget = this.wordMs(core + trail, ease);
+        }
       } else {
         buffer += token;
         budget += this.wordMs(token, ease);
@@ -299,35 +375,48 @@ export class HumanTypist {
 
       // Hesitations: at the end of a sentence, between paragraphs, and now and
       // then mid-flow, the way anyone actually writing something stops to think.
-      if (pauseM > 0) {
+      if (pauseM > 0 && !fix) {
         if (/\n\s*\n\s*$/.test(token)) {
           await flush();
           this.drift = rand(0.85, 1.18);
-          this.report('thinking');
-          await this.wait(rand(900, 3200) * pauseM);
+          await this.hesitate(rand(900, 3200) * pauseM, 'paragraph');
         } else if (/[.!?]["')\]]?\s+$/.test(token)) {
           await flush();
-          this.report('thinking');
-          await this.wait(rand(280, 1300) * pauseM);
+          await this.hesitate(rand(280, 1300) * pauseM, 'sentence');
+        } else if (chance(0.004)) {
+          await flush();
+          await this.hesitate(rand(4000, 14000) * pauseM, 'interrupted');
         } else if (++sinceThought > nextThought) {
           sinceThought = 0;
           nextThought = rand(14, 42);
-          this.report('thinking');
-          await this.wait(rand(400, 2200) * pauseM);
+          await this.hesitate(rand(400, 2200) * pauseM, 'mid-flow');
         }
       }
     }
 
+    // A mistake still standing at the end still gets fixed.
+    if (fix) {
+      await flush();
+      await this.fixDelayed(fix);
+      fix = null;
+    }
     await flush();
+
     this.report('done');
-    return { requests: this.requests, chars: this.done, ms: Date.now() - this.startedAt };
+    const ms = Date.now() - this.startedAt;
+    return {
+      requests: this.requests,
+      chars: this.done,
+      ms,
+      effectiveWpm: ms ? Math.round((this.done / 5) / (ms / 60000)) : 0,
+      ...this.stats,
+    };
   }
 }
 
 /** Produce a plausible mistyping of a word. */
 function corrupt(word) {
-  const kinds = ['slip', 'swap', 'double', 'drop'];
-  const kind = kinds[Math.floor(Math.random() * kinds.length)];
+  const kind = pick(['slip', 'slip', 'swap', 'double', 'drop', 'caps']);
   const i = 1 + Math.floor(Math.random() * (word.length - 1));
 
   switch (kind) {
@@ -335,7 +424,7 @@ function corrupt(word) {
       const ch = word[i].toLowerCase();
       const near = NEIGHBOURS[ch];
       if (!near) return null;
-      let hit = near[Math.floor(Math.random() * near.length)];
+      let hit = pick(near.split(''));
       if (word[i] !== ch) hit = hit.toUpperCase();
       return word.slice(0, i) + hit + word.slice(i + 1);
     }
@@ -347,6 +436,17 @@ function corrupt(word) {
       return word.slice(0, i) + word[i] + word.slice(i);
     case 'drop':
       return word.slice(0, i) + word.slice(i + 1);
+    case 'caps': {
+      // Missed the shift key, or held it a beat too long.
+      const first = word[0];
+      if (first === first.toUpperCase() && first !== first.toLowerCase()) {
+        return first.toLowerCase() + word.slice(1);
+      }
+      if (first === first.toLowerCase() && first !== first.toUpperCase()) {
+        return first.toUpperCase() + word.slice(1);
+      }
+      return null;
+    }
     default:
       return null;
   }

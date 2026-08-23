@@ -20,8 +20,7 @@ const el = {
   log: $('log'),
   aiProvider: $('aiProvider'), aiModel: $('aiModel'), aiKey: $('aiKey'), aiKeyLink: $('aiKeyLink'),
   aiForget: $('aiForget'), aiPrompt: $('aiPrompt'), aiGenerate: $('aiGenerate'), aiStop: $('aiStop'),
-  aiStatus: $('aiStatus'), aiResultWrap: $('aiResultWrap'), aiOutput: $('aiOutput'),
-  aiType: $('aiType'), aiUse: $('aiUse'), aiRegenerate: $('aiRegenerate'), aiCounts: $('aiCounts'),
+  aiStatus: $('aiStatus'), aiChat: $('aiChat'), aiClear: $('aiClear'),
 };
 
 const PAUSE_LABELS = ['off', 'normal', 'long', 'very long'];
@@ -177,7 +176,12 @@ async function loadFile(file) {
 
 /* ---------------------------------------------------------- drafting with AI */
 
-const ai = { draft: '', running: false, abort: null };
+/**
+ * A conversation rather than a one-shot prompt: ask for a draft, then keep
+ * refining it. Every reply keeps its own "Type into a Doc" button, so any turn
+ * — not just the last one — can be the version that gets written.
+ */
+const ai = { chat: [], running: false, abort: null };
 
 function currentProvider() { return PROVIDERS[el.aiProvider.value]; }
 
@@ -204,7 +208,7 @@ async function syncProvider({ reloadModels = true } = {}) {
   }
 }
 
-el.aiProvider.addEventListener('change', () => syncProvider());
+el.aiProvider.addEventListener('change', () => { syncProvider(); renderChat(); });
 el.aiKey.addEventListener('change', async () => {
   setKey(el.aiProvider.value, el.aiKey.value.trim());
   await syncProvider();
@@ -215,51 +219,122 @@ el.aiForget.addEventListener('click', () => {
   log('Saved API keys removed from this browser.');
 });
 
+el.aiClear.addEventListener('click', () => {
+  ai.chat = [];
+  renderChat();
+  el.aiStatus.textContent = '';
+});
+
+function renderChat() {
+  el.aiChat.innerHTML = '';
+  if (!ai.chat.length) {
+    const empty = document.createElement('p');
+    empty.className = 'chat__empty';
+    empty.textContent = 'Ask for a draft, then keep talking — "make it longer", "more formal", "cut the last paragraph" — and send whichever reply you want typed into the document.';
+    el.aiChat.append(empty);
+    return;
+  }
+
+  ai.chat.forEach((turn, index) => {
+    const wrap = document.createElement('div');
+    wrap.className = `turn turn--${turn.role}${turn.streaming ? ' turn--typing' : ''}`;
+
+    const role = document.createElement('span');
+    role.className = 'turn__role';
+    role.textContent = turn.role === 'user' ? 'You' : currentProvider().label;
+    wrap.append(role);
+
+    const body = document.createElement('div');
+    body.className = 'turn__body';
+
+    const text = document.createElement('div');
+    text.className = 'turn__text';
+    text.textContent = turn.text;
+    body.append(text);
+
+    // Only a finished reply is worth sending to the document.
+    if (turn.role === 'assistant' && !turn.streaming && turn.text.trim()) {
+      const actions = document.createElement('div');
+      actions.className = 'turn__actions';
+
+      const type = document.createElement('button');
+      type.type = 'button';
+      type.className = 'btn btn-primary';
+      type.textContent = 'Type into a Doc';
+      type.addEventListener('click', () => useTurn(index, { start: true }));
+
+      const editor = document.createElement('button');
+      editor.type = 'button';
+      editor.className = 'btn';
+      editor.textContent = 'Send to editor';
+      editor.addEventListener('click', () => useTurn(index, { start: false }));
+
+      const meta = document.createElement('span');
+      meta.className = 'turn__meta';
+      const words = (turn.text.match(/\S+/g) || []).length;
+      meta.textContent = `${turn.text.length.toLocaleString()} chars · ${words.toLocaleString()} words`;
+
+      actions.append(type, editor, meta);
+      body.append(actions);
+    }
+
+    wrap.append(body);
+    el.aiChat.append(wrap);
+  });
+  el.aiChat.scrollTop = el.aiChat.scrollHeight;
+}
+
 el.aiStop.addEventListener('click', () => ai.abort?.abort());
 
-async function runGeneration() {
+async function send() {
+  if (ai.running) return;
   const key = el.aiKey.value.trim();
   const prompt = el.aiPrompt.value.trim();
-  if (!prompt) { el.aiStatus.textContent = 'Say what to write first'; return; }
+  if (!prompt) { el.aiStatus.textContent = 'Type a message first'; return; }
   if (!key) { el.aiStatus.textContent = 'An API key is needed'; el.aiKey.focus(); return; }
   setKey(el.aiProvider.value, key);
 
+  ai.chat.push({ role: 'user', text: prompt });
+  const history = ai.chat.map(({ role, text }) => ({ role, text }));
+  const reply = { role: 'assistant', text: '', streaming: true };
+  ai.chat.push(reply);
+  el.aiPrompt.value = '';
+  renderChat();
+
   ai.running = true;
   ai.abort = new AbortController();
-  ai.draft = '';
-  el.aiOutput.textContent = '';
-  el.aiResultWrap.classList.remove('hidden');
   el.aiGenerate.disabled = true;
   el.aiStop.classList.remove('hidden');
-  el.aiStatus.textContent = 'Generating…';
+  el.aiStatus.textContent = 'Thinking…';
   const started = Date.now();
 
   try {
     const text = await generate(el.aiProvider.value, {
       apiKey: key,
       model: el.aiModel.value,
-      prompt,
+      messages: history,
       signal: ai.abort.signal,
-      // Claude streams, so the draft appears as it is written.
-      onDelta: (chunk) => {
-        ai.draft += chunk;
-        el.aiOutput.textContent = ai.draft;
-        el.aiOutput.scrollTop = el.aiOutput.scrollHeight;
-        updateDraftCounts();
+      onDelta: (chunk) => {           // Claude streams; the others arrive whole
+        reply.text += chunk;
+        renderChat();
       },
     });
-    ai.draft = (text || ai.draft).trim();
-    el.aiOutput.textContent = ai.draft;
-    updateDraftCounts();
-    el.aiStatus.textContent = `Done in ${Math.round((Date.now() - started) / 1000)}s`;
-    log(`${currentProvider().label} drafted ${ai.draft.length.toLocaleString()} characters.`);
+    reply.text = (text || reply.text).trim();
+    reply.streaming = false;
+    renderChat();
+    el.aiStatus.textContent = `Replied in ${Math.round((Date.now() - started) / 1000)}s`;
+    log(`${currentProvider().label} drafted ${reply.text.length.toLocaleString()} characters.`);
   } catch (err) {
+    reply.streaming = false;
     if (err?.name === 'AbortError') {
       el.aiStatus.textContent = 'Stopped';
+      if (!reply.text) ai.chat.pop();
     } else {
       el.aiStatus.textContent = 'Failed';
+      ai.chat.pop();
       log(describeError(err), true);
     }
+    renderChat();
   } finally {
     ai.running = false;
     ai.abort = null;
@@ -268,41 +343,37 @@ async function runGeneration() {
   }
 }
 
-function updateDraftCounts() {
-  const words = (ai.draft.match(/\S+/g) || []).length;
-  el.aiCounts.textContent = `${ai.draft.length.toLocaleString()} chars · ${words.toLocaleString()} words`;
-}
+el.aiGenerate.addEventListener('click', send);
+el.aiPrompt.addEventListener('keydown', (e) => {
+  // Enter sends; Shift+Enter is a newline, as anyone would expect of a chat box.
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
 
-el.aiGenerate.addEventListener('click', runGeneration);
-el.aiRegenerate.addEventListener('click', runGeneration);
-
-/** Hand the draft to the typing pipeline. */
-function adoptDraft() {
-  state.sourceText = ai.draft;
+/** Hand one reply to the typing pipeline. */
+function useTurn(index, { start }) {
+  const turn = ai.chat[index];
+  if (!turn?.text) return;
+  state.sourceText = turn.text;
   state.fromFile = true;              // the paste box is not the source of truth here
-  el.text.value = ai.draft;
+  el.text.value = turn.text;
   if (!el.title.value.trim()) {
-    el.title.value = el.aiPrompt.value.trim().slice(0, 60) || 'Homework';
+    const firstAsk = ai.chat.find((t) => t.role === 'user');
+    el.title.value = (firstAsk?.text || 'Homework').slice(0, 60);
   }
   refreshCounts();
+
+  if (start) {
+    el.start.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    run();
+  } else {
+    document.querySelector('.tab').click();
+    el.text.focus();
+    log('Draft loaded into the editor.');
+  }
 }
 
-el.aiUse.addEventListener('click', () => {
-  if (!ai.draft) return;
-  adoptDraft();
-  document.querySelector('.tab').click();   // back to the paste tab, text loaded
-  el.text.focus();
-  log('Draft loaded into the editor.');
-});
-
-el.aiType.addEventListener('click', () => {
-  if (!ai.draft) return;
-  adoptDraft();
-  el.start.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  run();
-});
-
 syncProvider({ reloadModels: false });
+renderChat();
 
 /* ------------------------------------------------------------------ options */
 
