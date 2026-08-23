@@ -167,32 +167,35 @@ input:focus, textarea:focus { outline: none; border-color: var(--ink); }
   text-transform: none; color: var(--ink-dim);
 }
 .estimate { margin-top: 2.4rem; font-size: 0.88rem; color: var(--ink-dim); }
-.row { display: flex; gap: 1.5rem; align-items: flex-end; }
+.row { display: flex; gap: 1.2rem; align-items: flex-end; }
 
 /* ——— actions ——— */
 
-.actions { display: flex; flex-wrap: wrap; gap: 2rem; align-items: center; }
+.actions { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
 .btn {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid var(--ink-faint);
+  border-radius: 2px;
+  padding: 0.9rem 2.4rem;
+  color: var(--ink);
   font-family: var(--label);
-  font-size: 0.74rem; font-weight: 500; letter-spacing: 0.2em;
+  font-size: 0.75rem; font-weight: 500; letter-spacing: 0.24em;
   text-transform: uppercase; text-decoration: none;
-  color: var(--ink); background: none;
-  border: 0; border-bottom: 1px solid var(--ink-faint);
-  padding: 0 0 0.4em; cursor: pointer;
-  transition: border-color 0.3s ease, color 0.3s ease, opacity 0.3s ease;
+  cursor: pointer;
+  transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
 }
-.btn:hover:not(:disabled) { border-color: var(--ink); }
-.btn:disabled { color: var(--ink-faint); border-color: transparent; cursor: not-allowed; }
-.btn-primary::after {
-  content: "\2192"; margin-left: 0.7em; color: var(--ink-faint);
-  transition: color 0.3s ease;
-}
-.btn-primary:hover:not(:disabled)::after { color: var(--ink); }
-.btn-danger { color: var(--alert); border-color: color-mix(in srgb, var(--alert) 40%, transparent); }
-.btn-danger:hover { border-color: var(--alert); }
-.btn-ghost { color: var(--ink-dim); border-color: transparent; }
-.btn-ghost:hover { color: var(--ink); border-color: var(--ink-faint); }
-.btn-sm { font-size: 0.66rem; }
+.btn:hover:not(:disabled) { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.btn:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
+.btn:disabled { color: var(--ink-faint); border-color: var(--hairline); cursor: not-allowed; }
+.btn:disabled:hover { background: transparent; color: var(--ink-faint); }
+
+.btn-primary { border-color: var(--ink); }
+.btn-danger { color: var(--alert); border-color: color-mix(in srgb, var(--alert) 45%, transparent); }
+.btn-danger:hover:not(:disabled) { border-color: var(--alert); background: var(--alert); color: var(--bg); }
+.btn-ghost { border-color: var(--hairline); color: var(--ink-dim); }
+.btn-ghost:hover:not(:disabled) { border-color: var(--ink); }
+.btn-sm { padding: 0.5rem 1.3rem; font-size: 0.66rem; letter-spacing: 0.2em; }
 
 /* ——— progress ——— */
 

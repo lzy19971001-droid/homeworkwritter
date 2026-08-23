@@ -65,20 +65,13 @@ code {
   text-transform: uppercase;
 }
 .nav__links { display: flex; gap: 1.6rem; margin-left: auto; }
-.nav__links a,
-.nav__cta {
+.nav__links a {
   font-family: var(--label);
   font-size: 0.72rem; font-weight: 500; letter-spacing: 0.22em;
   text-transform: uppercase;
   opacity: 0.65; transition: opacity 0.3s ease;
 }
-.nav__links a:hover, .nav__cta:hover { opacity: 1; }
-.nav__cta {
-  opacity: 1;
-  border-bottom: 1px solid var(--ink-faint);
-  padding-bottom: 0.3em;
-}
-.nav__cta:hover { border-color: var(--ink); }
+.nav__links a:hover { opacity: 1; }
 @media (max-width: 760px) { .nav__links { display: none; } }
 
 /* ——— hero ——— */
@@ -109,7 +102,7 @@ code {
 }
 .hero__actions {
   margin-top: 2.8rem;
-  display: flex; flex-wrap: wrap; gap: 2.2rem; justify-content: center;
+  display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;
   opacity: 0; animation: rise 1.6s 1.1s ease forwards;
 }
 
@@ -118,24 +111,33 @@ code {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ——— the one link style, used for every call to action ——— */
+/* ——— buttons ———
+   Lifted from the N1AC apply form: outlined, barely rounded, wide tracking,
+   and it fills with ink on hover rather than shifting or lifting. */
 
 .cta {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid var(--ink-faint);
+  border-radius: 2px;
+  padding: 0.9rem 2.4rem;
+  color: var(--ink);
   font-family: var(--label);
-  font-size: 0.78rem; font-weight: 500; letter-spacing: 0.2em;
+  font-size: 0.75rem; font-weight: 500; letter-spacing: 0.24em;
   text-transform: uppercase;
-  border-bottom: 1px solid var(--ink-faint);
-  padding-bottom: 0.4em;
-  transition: border-color 0.3s ease;
+  cursor: pointer;
+  transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
 }
-.cta:hover { border-color: var(--ink); }
-.cta::after {
-  content: "\2192"; margin-left: 0.7em;
-  color: var(--ink-faint); transition: color 0.3s ease;
-}
-.cta:hover::after { color: var(--ink); }
-.cta--quiet { color: var(--ink-dim); border-bottom-color: transparent; }
-.cta--quiet:hover { color: var(--ink); border-bottom-color: var(--ink-faint); }
+.cta:hover { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.cta:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
+
+/* The leading action carries a full-strength border; the secondary one waits
+   until you reach for it. */
+.cta--lead { border-color: var(--ink); }
+.cta--quiet { border-color: var(--hairline); color: var(--ink-dim); }
+.cta--quiet:hover { border-color: var(--ink); }
+
+.cta--small { padding: 0.55rem 1.4rem; font-size: 0.68rem; letter-spacing: 0.2em; }
 
 /* ——— the document being typed ——— */
 
@@ -172,12 +174,14 @@ code {
   text-transform: uppercase; color: var(--ink-faint);
 }
 .demo__replay {
-  font: inherit; letter-spacing: inherit; text-transform: inherit;
-  color: var(--ink-dim); background: none; border: 0;
-  border-bottom: 1px solid transparent; cursor: pointer; padding: 0 0 0.2em;
-  transition: border-color 0.3s ease, color 0.3s ease;
+  font-family: var(--label);
+  font-size: 0.62rem; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ink-dim); background: transparent;
+  border: 1px solid var(--hairline); border-radius: 2px;
+  padding: 0.4rem 1rem; cursor: pointer;
+  transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
 }
-.demo__replay:hover { color: var(--ink); border-bottom-color: var(--ink-faint); }
+.demo__replay:hover { border-color: var(--ink); background: var(--ink); color: var(--bg); }
 
 @media (prefers-reduced-motion: reduce) {
   .hero__label, .hero__title, .hero__sub, .hero__actions, .demo { animation: none; opacity: 1; }
