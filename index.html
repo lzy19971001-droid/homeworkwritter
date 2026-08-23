@@ -189,7 +189,11 @@
   <div class="faq">
     <details>
       <summary>What do I need before I can use it?</summary>
-      <p>A Google account, and a free Google Cloud OAuth client ID — a one-time setup that takes a few minutes and is walked through step by step in the README. It exists so that the app talks to <em>your</em> Google project, not someone else's.</p>
+      <p>A Google account. Press <em>Sign in with Google</em>, approve one permission, and you're in — the same flow as any other site with a Google button. Sign in once and you stay signed in on that browser.</p>
+    </details>
+    <details>
+      <summary>And if I want to run my own copy?</summary>
+      <p>Then there's a one-time step for <em>you</em>, not for your visitors: create a free Google Cloud OAuth client ID and drop it into <code>src/config.js</code>. It identifies the app to Google so the traffic runs through your project rather than someone else's. The README walks through it.</p>
     </details>
     <details>
       <summary>How long does a document take?</summary>

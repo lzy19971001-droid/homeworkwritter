@@ -1,4 +1,4 @@
-import { getClientId, setClientId, signIn, signOut, onAuthChange, isSignedIn } from './auth.js';
+import { getClientId, setClientId, signIn, signOut, onAuthChange, isSignedIn, restoreSession } from './auth.js';
 import { createDocument, docUrl, ensureFolder, ApiError } from './gdocs.js';
 import { extractText } from './extract.js';
 import { HumanTypist, Stopped, estimateMs, formatDuration } from './typist.js';
@@ -6,7 +6,7 @@ import { MAX_REQUESTS_PER_MINUTE } from './config.js';
 
 const $ = (id) => document.getElementById(id);
 const el = {
-  signIn: $('signInBtn'), signOut: $('signOutBtn'), profile: $('profile'),
+  signIn: $('signInBtn'), signOut: $('signOutBtn'), profile: $('profile'), authBusy: $('authBusy'),
   avatar: $('avatar'), who: $('who'),
   setupCard: $('setupCard'), clientIdInput: $('clientIdInput'), saveClientId: $('saveClientId'),
   text: $('text'), file: $('file'), drop: $('drop'), fileInfo: $('fileInfo'), counts: $('counts'),
@@ -78,6 +78,23 @@ el.signIn.addEventListener('click', async () => {
   }
 });
 
+/**
+ * A visitor who has signed in before should land already signed in, rather than
+ * being asked every time. Google decides whether to honour the silent request;
+ * if it declines, nothing is logged and the button is simply there to press.
+ */
+async function resumeSession() {
+  if (!getClientId()) return;
+  el.signIn.classList.add('hidden');
+  el.authBusy.classList.remove('hidden');
+  try {
+    if (await restoreSession()) log('Welcome back — reconnected to your Google account.');
+  } finally {
+    el.authBusy.classList.add('hidden');
+    if (!isSignedIn()) el.signIn.classList.remove('hidden');
+  }
+}
+
 el.signOut.addEventListener('click', () => {
   signOut();
   log('Signed out. The access token was revoked.');
@@ -95,6 +112,7 @@ el.saveClientId.addEventListener('click', () => {
 });
 
 if (!getClientId()) el.setupCard.classList.remove('hidden');
+resumeSession();
 
 /* --------------------------------------------------------------- input tabs */
 

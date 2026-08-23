@@ -33,8 +33,13 @@ Docs shows it being written over time** rather than appearing in one paste.
 
 ## Setup
 
-The app needs one thing from you: a Google OAuth **client ID**. It is public information —
-safe to commit and safe to paste into the page.
+**Who this section is for:** whoever deploys the app — once. The people who *use* your
+deployment never see any of it. They press **Sign in with Google**, approve one permission,
+and are done, exactly as on any other site with a Google button; returning visitors are
+signed back in automatically without being asked again.
+
+What you need is a Google OAuth **client ID**. It identifies your app to Google. It is public
+information — safe to commit and safe to paste into the page.
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/) and create a project
    (or pick an existing one).
@@ -52,9 +57,20 @@ safe to commit and safe to paste into the page.
      - `http://localhost:8000` for local use
      - `https://<your-github-username>.github.io` for GitHub Pages
    - No redirect URI is needed for this flow.
-5. Copy the client ID (it ends in `.apps.googleusercontent.com`) and either:
-   - paste it into the yellow box the app shows on first load (stored in `localStorage`), or
-   - set `DEFAULT_CLIENT_ID` in [`src/config.js`](src/config.js) and commit it.
+5. Copy the client ID (it ends in `.apps.googleusercontent.com`) and set `DEFAULT_CLIENT_ID`
+   in [`src/config.js`](src/config.js), then commit and deploy. **Do this rather than pasting
+   it into the box in the page** — the box is a fallback for trying the app out, and it only
+   ever applies to the one browser you paste it into. With the ID baked in, nobody sees the
+   box at all.
+
+### Letting anyone sign in, not just you
+
+While the consent screen sits in **Testing**, only the accounts listed under *Test users* can
+sign in — up to 100 of them. That is the right setting for personal use.
+
+To open it to anyone, go to the OAuth consent screen and press **Publish app**. Because every
+scope this app requests is non-sensitive, there is no verification review to pass and no
+"Google hasn't verified this app" warning — publishing takes effect immediately.
 
 ### Scopes, and why they are narrow
 

@@ -1,6 +1,9 @@
 import { DEFAULT_CLIENT_ID, SCOPES } from './config.js';
 
 const CLIENT_ID_KEY = 'hw.clientId';
+// Remembers that this browser has granted access before, so a returning visitor
+// can be signed in again without being asked to click anything.
+const RETURNING_KEY = 'hw.returning';
 
 let tokenClient = null;
 let clientId = localStorage.getItem(CLIENT_ID_KEY) || DEFAULT_CLIENT_ID || '';
@@ -53,6 +56,7 @@ export function requestToken({ prompt = '' } = {}) {
       }
       accessToken = resp.access_token;
       expiresAt = Date.now() + (Number(resp.expires_in || 3600) - 60) * 1000;
+      try { localStorage.setItem(RETURNING_KEY, '1'); } catch { /* private mode */ }
       emit();
       resolve(accessToken);
     };
@@ -76,12 +80,30 @@ export async function signIn() {
 }
 
 export function signOut() {
+  try { localStorage.removeItem(RETURNING_KEY); } catch { /* private mode */ }
   const token = accessToken;
   accessToken = null;
   expiresAt = 0;
   user = null;
   emit();
   if (token) { try { gis().revoke(token, () => {}); } catch { /* best effort */ } }
+}
+
+/**
+ * Sign a returning visitor straight back in, with no click and no consent screen,
+ * the way any other product with a Google button behaves. Google only honours
+ * this if the browser still has a session and the grant is still in place —
+ * otherwise it fails quietly and the button is shown as usual.
+ */
+export async function restoreSession() {
+  if (!clientId || localStorage.getItem(RETURNING_KEY) !== '1') return false;
+  try {
+    await requestToken({ prompt: 'none' });
+    await loadProfile();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function loadProfile() {
