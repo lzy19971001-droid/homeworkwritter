@@ -14,231 +14,231 @@
 <link rel="canonical" href="https://homeworkwritter.com/" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&family=Poppins:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="./assets/landing.css" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9997;</text></svg>" />
 </head>
 <body>
 
 <nav class="nav">
-  <div class="nav-inner">
-    <a class="brand" href="./index.html"><span class="brand-mark">✍️</span> Homework&nbsp;Writer</a>
-    <div class="nav-links">
-      <a href="#how">How it works</a>
-      <a href="#features">Features</a>
-      <a href="#privacy">Privacy</a>
-      <a href="#faq">FAQ</a>
-    </div>
-    <div class="nav-cta">
-      <a class="link-muted" href="https://github.com/lzy19971001-droid/homeworkwritter" target="_blank" rel="noopener">GitHub</a>
-      <a class="btn btn-primary" href="./app.html">Open the app</a>
-    </div>
+  <a class="nav__mark" href="./index.html">Homework Writer</a>
+  <div class="nav__links">
+    <a href="#how">Method</a>
+    <a href="#detail">Detail</a>
+    <a href="#privacy">Access</a>
+    <a href="#faq">Questions</a>
   </div>
+  <a class="nav__cta" href="./app.html">Open</a>
 </nav>
 
 <header class="hero">
-  <div class="hero-glow" aria-hidden="true"></div>
-  <div class="hero-inner">
-    <div class="hero-copy">
-      <span class="pill"><span class="dot"></span> Runs entirely in your browser</span>
-      <h1>Your writing, typed into a Google&nbsp;Doc at <em>human</em> speed.</h1>
-      <p class="lede">
-        Paste your text or drop in a file. Homework Writer creates a fresh Doc in your own
-        Drive and writes it out the way a person would — in bursts, pausing between
-        sentences, catching the occasional typo and fixing it.
-      </p>
-      <div class="hero-actions">
-        <a class="btn btn-primary btn-lg" href="./app.html">Open the app <span aria-hidden="true">→</span></a>
-        <a class="btn btn-ghost btn-lg" href="#how">See how it works</a>
-      </div>
-      <p class="fine">Free · No account to create · Nothing is uploaded to us — there is no “us”</p>
+  <div class="hero__inner">
+    <p class="hero__label">Runs entirely in your browser</p>
+    <h1 class="hero__title">Your writing, typed into a Google&nbsp;Doc at human speed.</h1>
+    <p class="hero__sub">
+      Paste your text or drop in a file. A fresh document appears in your own Drive and fills
+      in the way a person would write it — in bursts, pausing between sentences, catching the
+      occasional typo and going back to fix it.
+    </p>
+    <div class="hero__actions">
+      <a class="cta" href="./app.html">Open the app</a>
+      <a class="cta cta--quiet" href="#how">See the method</a>
     </div>
+  </div>
 
-    <div class="hero-demo">
-      <div class="window">
-        <div class="window-bar">
-          <span class="dots"><i></i><i></i><i></i></span>
-          <span class="window-title">Untitled document — Google Docs</span>
-        </div>
-        <div class="doc-chrome">
-          <span class="doc-name">Essay draft</span>
-          <span class="doc-menu">File · Edit · View · Insert · Format</span>
-        </div>
-        <div class="doc-page">
-          <div id="demoPage" class="doc-text"></div>
-        </div>
-        <div class="window-foot">
-          <span class="status"><span class="pulse"></span><span id="demoStatus">typing…</span></span>
-          <button id="demoReplay" class="replay" type="button">Replay</button>
-        </div>
+  <div class="demo">
+    <div class="demo__frame">
+      <div class="demo__bar">
+        <span>Essay draft</span>
+        <span>Google Docs</span>
       </div>
-      <p class="demo-note">Not a canned animation — this is the actual typing engine, writing into a page element instead of a Doc.</p>
+      <div class="demo__page">
+        <div id="demoPage" class="demo__text"></div>
+      </div>
+    </div>
+    <div class="demo__foot">
+      <span id="demoStatus">typing</span>
+      <button id="demoReplay" class="demo__replay" type="button">Replay</button>
     </div>
   </div>
 </header>
 
-<section class="strip">
-  <div class="strip-inner">
-    <div class="stat"><strong>0</strong><span>servers between you and Google</span></div>
-    <div class="stat"><strong>1</strong><span>permission, the narrowest one</span></div>
-    <div class="stat"><strong>15–140</strong><span>words per minute, your call</span></div>
-    <div class="stat"><strong>100%</strong><span>of the source is on GitHub</span></div>
-  </div>
-</section>
+<dl class="figures">
+  <div class="figure"><dt>0</dt><dd>servers between you and Google</dd></div>
+  <div class="figure"><dt>1</dt><dd>permission, the narrowest one</dd></div>
+  <div class="figure"><dt>15–140</dt><dd>words per minute, your call</dd></div>
+  <div class="figure"><dt>100%</dt><dd>of the source on GitHub</dd></div>
+</dl>
 
-<section id="how" class="section">
-  <div class="section-head">
-    <h2>Three steps, about a minute of setup</h2>
-    <p>Sign in once. After that it is paste, adjust, go.</p>
-  </div>
-  <ol class="steps">
+<main>
+
+<section class="section" id="how">
+  <p class="section__label"><span class="section__num">01</span> Method</p>
+  <h2>Three steps, and one minute of setup that happens once.</h2>
+  <ol class="list">
     <li>
-      <span class="step-n">1</span>
-      <h3>Sign in with Google</h3>
-      <p>One consent screen, asking for a single permission: the files this app creates. Your existing Drive stays invisible to it.</p>
+      <div class="list__row">
+        <span class="list__key">One</span>
+        <div>
+          <h3>Sign in with Google</h3>
+          <p>A single consent screen asking for a single permission: the files this app creates. Your existing Drive stays invisible to it.</p>
+        </div>
+      </div>
     </li>
     <li>
-      <span class="step-n">2</span>
-      <h3>Give it your text</h3>
-      <p>Paste it, or drop a <code>.txt</code>, <code>.md</code>, <code>.docx</code> or <code>.pdf</code>. Set the speed, how many typos, how often it stops to think.</p>
+      <div class="list__row">
+        <span class="list__key">Two</span>
+        <div>
+          <h3>Give it your text</h3>
+          <p>Paste it, or drop a <code>.txt</code>, <code>.md</code>, <code>.docx</code> or <code>.pdf</code>. Set the speed, the typo rate, and how often it stops to think.</p>
+        </div>
+      </div>
     </li>
     <li>
-      <span class="step-n">3</span>
-      <h3>Watch it write</h3>
-      <p>A new Doc appears in your Drive and fills in line by line. Pause it, stop it, or close the tab and pick up where it left off.</p>
+      <div class="list__row">
+        <span class="list__key">Three</span>
+        <div>
+          <h3>Watch it write</h3>
+          <p>A new document appears in your Drive and fills in line by line. Pause it, stop it, or come back later and pick up from the character it left on.</p>
+        </div>
+      </div>
     </li>
   </ol>
 </section>
 
-<section id="features" class="section alt">
-  <div class="section-head">
-    <h2>Built for how writing actually looks</h2>
-    <p>Every detail exists because the alternative — one enormous paste — looks like exactly what it is.</p>
+<section class="section" id="detail">
+  <p class="section__label"><span class="section__num">02</span> Detail</p>
+  <h2>Built for how writing actually looks, not how fast it can be pasted.</h2>
+  <ul class="list">
+    <li>
+      <div class="list__row">
+        <span class="list__key">Cadence</span>
+        <div><p>Characters arrive in bursts sized from your target speed, jittered every time, so nothing lands on a metronome.</p></div>
+      </div>
+    </li>
+    <li>
+      <div class="list__row">
+        <span class="list__key">Typos</span>
+        <div><p>Adjacent-key slips, swapped letters, doubled and dropped characters — typed, noticed a beat later, backspaced, retyped.</p></div>
+      </div>
+    </li>
+    <li>
+      <div class="list__row">
+        <span class="list__key">Pauses</span>
+        <div><p>At the end of a sentence, between paragraphs, and at intervals mid-flow. Speed drifts a little from one paragraph to the next.</p></div>
+      </div>
+    </li>
+    <li>
+      <div class="list__row">
+        <span class="list__key">Files</span>
+        <div><p><code>.docx</code> is unzipped in your browser and never leaves the machine. Text formats are read directly; PDFs go through Drive's own converter.</p></div>
+      </div>
+    </li>
+    <li>
+      <div class="list__row">
+        <span class="list__key">Control</span>
+        <div><p>Pause, stop, resume. If the network drops, one press continues in the same document from the exact character it stopped on.</p></div>
+      </div>
+    </li>
+    <li>
+      <div class="list__row">
+        <span class="list__key">Filing</span>
+        <div><p>Name the document and give it a Drive folder. The folder is created if it does not exist yet.</p></div>
+      </div>
+    </li>
+  </ul>
+</section>
+
+<section class="section" id="privacy">
+  <p class="section__label"><span class="section__num">03</span> Access</p>
+  <h2>There is no backend. That is the whole design.</h2>
+  <div class="section__body">
+    <p class="section__claim">
+      The page you load is static files. Your text goes from your browser straight to Google's
+      own API, using a token you grant that expires within the hour.
+    </p>
+    <p>
+      It is never sent anywhere else, because there is nowhere else — no database, no
+      analytics, no account system, nothing to breach. The app asks for one permission,
+      <code>drive.file</code>, which Google classifies as non-sensitive: it can see and manage
+      only the files it creates.
+    </p>
   </div>
-  <div class="cards">
-    <article class="card">
-      <span class="ico">⌨️</span>
-      <h3>Realistic cadence</h3>
-      <p>Characters arrive in bursts sized from your target speed, with jitter on every one, so nothing lands on a metronome.</p>
-    </article>
-    <article class="card">
-      <span class="ico">🔁</span>
-      <h3>Typos, then corrections</h3>
-      <p>Adjacent-key slips, swapped letters, doubled and dropped characters — typed, noticed a beat later, backspaced, retyped.</p>
-    </article>
-    <article class="card">
-      <span class="ico">💭</span>
-      <h3>Pauses where people pause</h3>
-      <p>At the end of a sentence, between paragraphs, and at random mid-flow. Speed drifts slightly from paragraph to paragraph.</p>
-    </article>
-    <article class="card">
-      <span class="ico">📄</span>
-      <h3>Reads your files</h3>
-      <p><code>.docx</code> is unzipped in your browser — it never leaves the machine. Text formats are read directly; PDFs go through Drive's own converter.</p>
-    </article>
-    <article class="card">
-      <span class="ico">⏯️</span>
-      <h3>Pause, stop, resume</h3>
-      <p>Interrupt any run without losing it. If the network drops, one click continues in the same document from the exact character it stopped on.</p>
-    </article>
-    <article class="card">
-      <span class="ico">📁</span>
-      <h3>Filed where you want it</h3>
-      <p>Name the Doc and give it a Drive folder. The folder is created if it doesn't exist yet.</p>
-    </article>
+
+  <div class="scopes">
+    <div class="scopes__row">
+      <div>
+        <span class="scopes__name">auth/drive.file</span>
+        <span class="scopes__what">Only the files this app creates</span>
+      </div>
+      <span class="scopes__tag scopes__tag--on">Requested</span>
+    </div>
+    <div class="scopes__row">
+      <div>
+        <span class="scopes__name">auth/documents</span>
+        <span class="scopes__what">Every Google Doc you own</span>
+      </div>
+      <span class="scopes__tag">Not requested</span>
+    </div>
+    <div class="scopes__row">
+      <div>
+        <span class="scopes__name">auth/drive</span>
+        <span class="scopes__what">Your entire Google Drive</span>
+      </div>
+      <span class="scopes__tag">Not requested</span>
+    </div>
+    <p class="scopes__foot">Sign-in also reads your name and email, to show which account is connected.</p>
   </div>
 </section>
 
-<section id="privacy" class="section">
-  <div class="split">
-    <div>
-      <span class="eyebrow">Privacy</span>
-      <h2>There is no backend. That is the whole design.</h2>
-      <p>
-        The page you load is static files. Your text goes from your browser straight to
-        Google's own API using a token you grant and that expires in an hour. It is never
-        sent anywhere else, because there is nowhere else — no database, no analytics, no
-        account system, nothing to breach.
-      </p>
-      <p>
-        The app asks for <code>drive.file</code>, which Google classifies as non-sensitive:
-        it can see and manage <em>only the files it creates</em>. The broader
-        <code>documents</code> permission would have been easier to build against and would
-        have handed it every Doc you own. It isn't requested.
-      </p>
-      <a class="btn btn-ghost" href="https://github.com/lzy19971001-droid/homeworkwritter" target="_blank" rel="noopener">Read the source →</a>
-    </div>
-    <div class="scopes">
-      <div class="scope-row good">
-        <div><strong>drive.file</strong><span>Only files this app creates</span></div>
-        <span class="tag ok">Requested</span>
-      </div>
-      <div class="scope-row">
-        <div><strong>documents</strong><span>Every Google Doc you own</span></div>
-        <span class="tag no">Not requested</span>
-      </div>
-      <div class="scope-row">
-        <div><strong>drive</strong><span>Your entire Google Drive</span></div>
-        <span class="tag no">Not requested</span>
-      </div>
-      <p class="scope-foot">Sign-in also reads your name and email, to show which account is connected.</p>
-    </div>
-  </div>
-</section>
-
-<section id="faq" class="section alt">
-  <div class="section-head">
-    <h2>Questions</h2>
-  </div>
+<section class="section section--last" id="faq">
+  <p class="section__label"><span class="section__num">04</span> Questions</p>
   <div class="faq">
     <details>
       <summary>What do I need before I can use it?</summary>
-      <p>A Google account. Press <em>Sign in with Google</em>, approve one permission, and you're in — the same flow as any other site with a Google button. Sign in once and you stay signed in on that browser.</p>
+      <p>A Google account. Press sign in, approve one permission, and you are in — the same flow as any other site with a Google button. Sign in once and you stay signed in on that browser.</p>
     </details>
     <details>
       <summary>And if I want to run my own copy?</summary>
-      <p>Then there's a one-time step for <em>you</em>, not for your visitors: create a free Google Cloud OAuth client ID and drop it into <code>src/config.js</code>. It identifies the app to Google so the traffic runs through your project rather than someone else's. The README walks through it.</p>
+      <p>Then there is a one-time step for you, not for your visitors: create a free Google Cloud OAuth client ID and drop it into <code>src/config.js</code>. It identifies the app to Google so the traffic runs through your project rather than someone else's.</p>
     </details>
     <details>
       <summary>How long does a document take?</summary>
-      <p>Roughly as long as writing it would. Five thousand characters at 55&nbsp;wpm is about twenty minutes; the app estimates it before you start. Keep the tab in the foreground, since browsers slow timers in background tabs.</p>
+      <p>Roughly as long as writing it would. Five thousand characters at 55 words per minute is about twenty minutes, and the app estimates it before you start. Keep the tab in front, since browsers slow timers in background tabs.</p>
     </details>
     <details>
-      <summary>Does the Doc's version history show the typing?</summary>
+      <summary>Does the version history show the typing?</summary>
       <p>Yes. Each burst is a separate edit, so Google's own revision history shows the document accumulating over time rather than appearing at once.</p>
     </details>
     <details>
       <summary>Can I close the tab while it runs?</summary>
-      <p>No — the typing happens in the page, so it stops when the tab does. Reopening the app and pressing start again continues in the same document from where it stopped.</p>
+      <p>No — the typing happens in the page, so it stops when the tab does. Reopening the app and pressing start continues in the same document from where it stopped.</p>
     </details>
     <details>
       <summary>Is this for cheating on homework?</summary>
-      <p>It types text you already have; it doesn't write anything for you. But it's worth being straight about it: pacing an edit history so work looks like it was drafted over time is something many schools treat as academic misconduct, whoever actually wrote the words. That call is yours, and it's worth knowing the rules you're under before you make it.</p>
+      <p>It types text you already have; it does not write anything for you. But it is worth being straight about it: pacing an edit history so work looks drafted over time is something many schools treat as academic misconduct, whoever wrote the words. That call is yours, and it is worth knowing the rules you are under before you make it.</p>
     </details>
   </div>
 </section>
 
-<section class="cta">
-  <div class="cta-inner">
-    <h2>Ready when you are.</h2>
-    <p>Free, self-hosted, and running the moment you have a client ID.</p>
-    <div class="hero-actions center">
-      <a class="btn btn-primary btn-lg" href="./app.html">Open the app <span aria-hidden="true">→</span></a>
-      <a class="btn btn-ghost btn-lg" href="https://github.com/lzy19971001-droid/homeworkwritter#setup" target="_blank" rel="noopener">Setup guide</a>
-    </div>
-  </div>
-</section>
+</main>
 
-<footer class="foot">
-  <div class="foot-inner">
-    <span class="brand"><span class="brand-mark">✍️</span> Homework Writer</span>
-    <div class="foot-links">
-      <a href="./app.html">App</a>
-      <a href="./tests/simulate.html">Offline demo</a>
-      <a href="https://github.com/lzy19971001-droid/homeworkwritter" target="_blank" rel="noopener">Source</a>
-    </div>
-    <span class="foot-fine">Not affiliated with Google. Google Docs and Google Drive are trademarks of Google LLC.</span>
+<div class="statement">
+  <p>Ready when you are.</p>
+  <div class="hero__actions">
+    <a class="cta" href="./app.html">Open the app</a>
+    <a class="cta cta--quiet" href="https://github.com/lzy19971001-droid/homeworkwritter#setup" target="_blank" rel="noopener">Setup guide</a>
   </div>
+</div>
+
+<footer class="footer">
+  <span>Homework Writer</span>
+  <div class="footer__links">
+    <a href="./app.html">App</a>
+    <a href="./tests/simulate.html">Offline demo</a>
+    <a href="https://github.com/lzy19971001-droid/homeworkwritter" target="_blank" rel="noopener">Source</a>
+  </div>
+  <span class="footer__fine">Not affiliated with Google. Google Docs and Google Drive are trademarks of Google LLC.</span>
 </footer>
 
 <script type="module">
