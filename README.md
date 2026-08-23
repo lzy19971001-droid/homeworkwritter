@@ -43,7 +43,17 @@ information — safe to commit and safe to paste into the page.
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/) and create a project
    (or pick an existing one).
-2. **APIs & Services → Library**: enable **Google Docs API** and **Google Drive API**.
+2. Enable the two APIs the app calls. These links open the enable page directly, which is
+   easier than finding them in the Library — check the project picker in the top bar first,
+   or you will enable them on the wrong project:
+   - [Google Docs API](https://console.cloud.google.com/apis/library/docs.googleapis.com)
+     (`docs.googleapis.com`)
+   - [Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com)
+     (`drive.googleapis.com`)
+
+   The button reads **Manage** once an API is on. Searching from **APIs & Services → Library**
+   works too — but note that *Enabled APIs & services* is a different page that only lists
+   what is already on, so searching there for an API you have not enabled yet finds nothing.
 3. **APIs & Services → OAuth consent screen**:
    - User type **External** is fine.
    - Fill in app name and support email.
