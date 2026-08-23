@@ -1,4 +1,9 @@
-import { appendText, deleteRange, getBodyLength } from './gdocs.js';
+/**
+ * The typing model. Deliberately imports nothing: it knows how a person types,
+ * not where the text goes. Callers pass a sink (append / remove / length), so
+ * this file runs unchanged in the app against a Google Doc and in tests/lab.html
+ * against a DOM node. tests/typing.py mirrors the same model for the terminal.
+ */
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -8,20 +13,6 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 export class Stopped extends Error {
   constructor() { super('Stopped by user.'); this.name = 'Stopped'; }
 }
-
-/**
- * Where the typing goes. The app passes the Google Doc sink below; the landing
- * page and the lab pass ones backed by a DOM node, so what you watch there is
- * this exact engine rather than a lookalike animation.
- *
- * `length` returns the character count; positions follow the Docs API, where
- * the first character sits at index 1.
- */
-export const docsSink = (documentId) => ({
-  append: (text) => appendText(documentId, text),
-  remove: (startIndex, endIndex) => deleteRange(documentId, startIndex, endIndex),
-  length: () => getBodyLength(documentId),
-});
 
 /** Rough QWERTY neighbours — the keys a hurried finger actually hits. */
 const NEIGHBOURS = {
@@ -120,8 +111,7 @@ export function formatDuration(ms) {
 export class HumanTypist {
   /**
    * @param {object} opts
-   * @param {string} [opts.documentId]  target Google Doc (or pass a sink)
-   * @param {object} [opts.sink]        append / remove / length
+   * @param {object} opts.sink          append(text) / remove(start, end) / length()
    * @param {number} opts.wpm           target typing speed
    * @param {number} opts.typoRate      probability a word is mistyped first
    * @param {number} opts.pauseLevel    0 none ... 3 very hesitant
@@ -130,11 +120,11 @@ export class HumanTypist {
    * @param {function} [opts.onEvent]   trace hook: ({type, ...}) for the lab
    */
   constructor({
-    documentId = null, sink = null, wpm = 55, typoRate = 0.03, pauseLevel = 1,
+    sink, wpm = 55, typoRate = 0.03, pauseLevel = 1,
     timeScale = 1, onProgress = () => {}, onEvent = () => {}, onLog = () => {},
   }) {
-    this.documentId = documentId;
-    this.sink = sink || docsSink(documentId);
+    if (!sink) throw new Error('HumanTypist needs a sink: { append, remove, length }.');
+    this.sink = sink;
     this.wpm = wpm;
     this.typoRate = typoRate;
     this.pauseLevel = pauseLevel;

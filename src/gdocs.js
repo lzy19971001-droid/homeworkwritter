@@ -124,6 +124,16 @@ export function deleteRange(documentId, startIndex, endIndex) {
 }
 
 /**
+ * The sink the typist writes through when the target is a real Google Doc.
+ * Positions follow the Docs API, where the first character sits at index 1.
+ */
+export const docsSink = (documentId) => ({
+  append: (text) => appendText(documentId, text),
+  remove: (startIndex, endIndex) => deleteRange(documentId, startIndex, endIndex),
+  length: () => getBodyLength(documentId),
+});
+
+/**
  * Number of characters currently in the body. A Google Doc always ends with a
  * final newline that cannot be removed, so the body's end index is
  * (characters typed) + 2. Used to re-sync if our local cursor ever drifts.
@@ -138,7 +148,7 @@ export async function getBodyLength(documentId) {
 /** Find a Drive folder this app created, or create it. Requires only drive.file. */
 export async function ensureFolder(name) {
   const q = encodeURIComponent(
-    `name='${name.replace(/'/g, "\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+    `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
   );
   const found = await api(`${DRIVE}?q=${q}&fields=files(id,name)&pageSize=1`);
   if (found.files?.length) return found.files[0].id;

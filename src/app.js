@@ -1,5 +1,5 @@
 import { getClientId, setClientId, signIn, signOut, onAuthChange, isSignedIn, restoreSession } from './auth.js';
-import { createDocument, docUrl, ensureFolder, ApiError } from './gdocs.js';
+import { createDocument, docUrl, ensureFolder, docsSink, ApiError } from './gdocs.js';
 import { extractText } from './extract.js';
 import { HumanTypist, Stopped, estimateMs, formatDuration } from './typist.js';
 import { MAX_REQUESTS_PER_MINUTE } from './config.js';
@@ -505,7 +505,7 @@ async function run() {
     state.resumeText = null;
 
     const typist = new HumanTypist({
-      documentId: state.documentId,
+      sink: docsSink(state.documentId),
       ...opts,
       onProgress: onProgress,
       onLog: log,

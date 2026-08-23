@@ -193,25 +193,68 @@ The cursor position is tracked locally: a Doc body always ends with a newline th
 deleted, so with *n* characters typed the body's end index is *n + 2*. If a delete ever
 fails, the code re-reads the real length from the API and retries.
 
-## Testing without a Google account
+## Testing the typing locally
 
-Open <http://localhost:8000/tests/lab.html>. The Docs API is replaced with an in-page
-document, so the lab drives the real `typist.js` — same bursts, hesitations, typos and index
-arithmetic as the live app — with no network and no account.
+Two ways, neither needing a Google account.
 
-- **Run** types the sample text at the chosen settings and shows what the engine is doing:
-  live metrics (modelled wpm, bursts, typos, immediate vs delayed fixes, pause count and the
-  longest one), a rhythm strip where each bar is a burst and gold bars are pauses, and a
-  timestamped trace of every event.
-- **Time scale** compresses the wait between keystrokes by up to 60x, so a twenty-minute run
-  can be inspected in twenty seconds. It only divides the sleeps — the sequence of edits is
-  identical.
-- **Self-test** replays four configurations across four texts, including one where every
-  eligible word is mistyped first, and asserts the finished document matches the source
-  character for character. This is what proves the delete-and-retype arithmetic.
-- **Test .docx reader** parses `tests/fixture.docx` and checks the extracted text.
+### In a terminal — no server, no browser
 
-Browsers throttle timers in hidden tabs, so leave the tab in front while a run is going.
+```bash
+python tests/typing.py
+```
+
+Types the sample text live in the terminal, backspacing over its own mistakes, then prints
+whether the result matches the source and how it got there.
+
+```
+python tests/typing.py --speed 8            # eight times faster
+python tests/typing.py --wpm 40 --typos 25  # slow and error-prone
+python tests/typing.py --file essay.txt     # your own text
+python tests/typing.py --seed 7             # same run every time
+python tests/typing.py --trace              # log every event instead of animating
+python tests/typing.py --check              # constants still match the JS?
+```
+
+`--trace` is the one to reach for when you want to see the mechanics:
+
+```
+0.31s  burst    +5 'War. '
+0.33s  pause    sentence 1202ms
+0.50s  typo     immediate: conflict -> confkict
+0.53s  pause    spotted-typo 236ms
+0.53s  delete   -8
+```
+
+This script is a **port** of the model in [`src/typist.js`](src/typist.js), not a wrapper —
+there is no JavaScript runtime involved. Ports drift, so every tunable number lives in one
+`TUNING` block and `--check` reads `src/typist.js` to confirm they still agree:
+
+```
+$ python tests/typing.py --check
+Constants have drifted from src/typist.js:
+
+  - CADENCE_MS: typist.js has 1700, this script has 1600
+```
+
+Change the model on one side and `--check` tells you about the other. The exit code is
+non-zero on a mismatch or a failed reconstruction, so it drops into CI as-is.
+
+### In the browser — the lab
+
+Serve the folder and open <http://localhost:8000/tests/lab.html>:
+
+```bash
+python -m http.server 8000
+```
+
+The Docs API is replaced with an in-page document, so the lab drives the real `typist.js`.
+**Run** shows live metrics (modelled wpm, bursts, typos, immediate vs delayed fixes, pauses),
+a rhythm strip where each bar is a burst and gold bars are pauses, and a timestamped trace.
+**Time scale** compresses the waits up to 60x. **Self-test** sweeps four configurations across
+four texts and asserts exact reconstruction. **Test .docx reader** checks the extractor.
+
+Browsers throttle timers in hidden tabs, so keep the tab in front — in the background the
+self-test takes minutes rather than seconds. The terminal script has no such problem.
 
 ## Things worth knowing
 
