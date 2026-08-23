@@ -3,6 +3,7 @@ import { createDocument, docUrl, ensureFolder, ApiError } from './gdocs.js';
 import { extractText } from './extract.js';
 import { HumanTypist, Stopped, estimateMs, formatDuration } from './typist.js';
 import { MAX_REQUESTS_PER_MINUTE } from './config.js';
+import { PROVIDERS, getKey, setKey, forgetAllKeys, loadModels, generate } from './ai.js';
 
 const $ = (id) => document.getElementById(id);
 const el = {
@@ -17,6 +18,10 @@ const el = {
   start: $('startBtn'), pauseBtn: $('pauseBtn'), stop: $('stopBtn'), docLink: $('docLink'),
   progressWrap: $('progressWrap'), bar: $('bar'), progressText: $('progressText'), etaText: $('etaText'),
   log: $('log'),
+  aiProvider: $('aiProvider'), aiModel: $('aiModel'), aiKey: $('aiKey'), aiKeyLink: $('aiKeyLink'),
+  aiForget: $('aiForget'), aiPrompt: $('aiPrompt'), aiGenerate: $('aiGenerate'), aiStop: $('aiStop'),
+  aiStatus: $('aiStatus'), aiResultWrap: $('aiResultWrap'), aiOutput: $('aiOutput'),
+  aiType: $('aiType'), aiUse: $('aiUse'), aiRegenerate: $('aiRegenerate'), aiCounts: $('aiCounts'),
 };
 
 const PAUSE_LABELS = ['off', 'normal', 'long', 'very long'];
@@ -122,7 +127,7 @@ for (const tab of document.querySelectorAll('.tab')) {
     for (const pane of document.querySelectorAll('.pane')) {
       pane.classList.toggle('hidden', pane.id !== tab.dataset.pane);
     }
-    state.fromFile = tab.dataset.pane === 'filePane';
+    state.fromFile = tab.dataset.pane !== 'pastePane';
     if (!state.fromFile) state.sourceText = el.text.value;
     refreshCounts();
   });
@@ -168,6 +173,136 @@ async function loadFile(file) {
   }
   refreshCounts();
 }
+
+
+/* ---------------------------------------------------------- drafting with AI */
+
+const ai = { draft: '', running: false, abort: null };
+
+function currentProvider() { return PROVIDERS[el.aiProvider.value]; }
+
+async function syncProvider({ reloadModels = true } = {}) {
+  const id = el.aiProvider.value;
+  const provider = currentProvider();
+  el.aiKey.placeholder = provider.keyHint;
+  el.aiKeyLink.href = provider.keysUrl;
+  el.aiKey.value = getKey(id);
+
+  // Without a key the provider cannot be asked what it offers, so show the
+  // short static list until one is entered.
+  const models = el.aiKey.value && reloadModels
+    ? await loadModels(id, el.aiKey.value)
+    : provider.fallbackModels;
+  const chosen = models.includes(provider.preferred) ? provider.preferred : models[0];
+  el.aiModel.innerHTML = '';
+  for (const m of models) {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m;
+    if (m === chosen) opt.selected = true;
+    el.aiModel.append(opt);
+  }
+}
+
+el.aiProvider.addEventListener('change', () => syncProvider());
+el.aiKey.addEventListener('change', async () => {
+  setKey(el.aiProvider.value, el.aiKey.value.trim());
+  await syncProvider();
+});
+el.aiForget.addEventListener('click', () => {
+  forgetAllKeys();
+  el.aiKey.value = '';
+  log('Saved API keys removed from this browser.');
+});
+
+el.aiStop.addEventListener('click', () => ai.abort?.abort());
+
+async function runGeneration() {
+  const key = el.aiKey.value.trim();
+  const prompt = el.aiPrompt.value.trim();
+  if (!prompt) { el.aiStatus.textContent = 'Say what to write first'; return; }
+  if (!key) { el.aiStatus.textContent = 'An API key is needed'; el.aiKey.focus(); return; }
+  setKey(el.aiProvider.value, key);
+
+  ai.running = true;
+  ai.abort = new AbortController();
+  ai.draft = '';
+  el.aiOutput.textContent = '';
+  el.aiResultWrap.classList.remove('hidden');
+  el.aiGenerate.disabled = true;
+  el.aiStop.classList.remove('hidden');
+  el.aiStatus.textContent = 'Generating…';
+  const started = Date.now();
+
+  try {
+    const text = await generate(el.aiProvider.value, {
+      apiKey: key,
+      model: el.aiModel.value,
+      prompt,
+      signal: ai.abort.signal,
+      // Claude streams, so the draft appears as it is written.
+      onDelta: (chunk) => {
+        ai.draft += chunk;
+        el.aiOutput.textContent = ai.draft;
+        el.aiOutput.scrollTop = el.aiOutput.scrollHeight;
+        updateDraftCounts();
+      },
+    });
+    ai.draft = (text || ai.draft).trim();
+    el.aiOutput.textContent = ai.draft;
+    updateDraftCounts();
+    el.aiStatus.textContent = `Done in ${Math.round((Date.now() - started) / 1000)}s`;
+    log(`${currentProvider().label} drafted ${ai.draft.length.toLocaleString()} characters.`);
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      el.aiStatus.textContent = 'Stopped';
+    } else {
+      el.aiStatus.textContent = 'Failed';
+      log(describeError(err), true);
+    }
+  } finally {
+    ai.running = false;
+    ai.abort = null;
+    el.aiGenerate.disabled = false;
+    el.aiStop.classList.add('hidden');
+  }
+}
+
+function updateDraftCounts() {
+  const words = (ai.draft.match(/\S+/g) || []).length;
+  el.aiCounts.textContent = `${ai.draft.length.toLocaleString()} chars · ${words.toLocaleString()} words`;
+}
+
+el.aiGenerate.addEventListener('click', runGeneration);
+el.aiRegenerate.addEventListener('click', runGeneration);
+
+/** Hand the draft to the typing pipeline. */
+function adoptDraft() {
+  state.sourceText = ai.draft;
+  state.fromFile = true;              // the paste box is not the source of truth here
+  el.text.value = ai.draft;
+  if (!el.title.value.trim()) {
+    el.title.value = el.aiPrompt.value.trim().slice(0, 60) || 'Homework';
+  }
+  refreshCounts();
+}
+
+el.aiUse.addEventListener('click', () => {
+  if (!ai.draft) return;
+  adoptDraft();
+  document.querySelector('.tab').click();   // back to the paste tab, text loaded
+  el.text.focus();
+  log('Draft loaded into the editor.');
+});
+
+el.aiType.addEventListener('click', () => {
+  if (!ai.draft) return;
+  adoptDraft();
+  el.start.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  run();
+});
+
+syncProvider({ reloadModels: false });
 
 /* ------------------------------------------------------------------ options */
 

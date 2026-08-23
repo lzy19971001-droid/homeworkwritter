@@ -55,6 +55,7 @@
     <div class="tabs" role="tablist">
       <button class="tab active" data-pane="pastePane" role="tab">Paste text</button>
       <button class="tab" data-pane="filePane" role="tab">Upload a file</button>
+      <button class="tab" data-pane="aiPane" role="tab">Write with AI</button>
     </div>
 
     <div id="pastePane" class="pane">
@@ -69,6 +70,54 @@
         <span class="drop-sub">.txt .md .csv — read in your browser · .docx — unzipped locally · .pdf .doc .odt .rtf — converted by Google Drive</span>
       </label>
       <div id="fileInfo" class="file-info hidden"></div>
+    </div>
+
+    <div id="aiPane" class="pane hidden">
+      <div class="ai">
+        <div class="ai__controls">
+          <label class="field">
+            <span>Model provider</span>
+            <select id="aiProvider">
+              <option value="claude">Claude</option>
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Model</span>
+            <select id="aiModel"></select>
+          </label>
+          <label class="field ai__key">
+            <span>Your API key <small>(<a id="aiKeyLink" href="#" target="_blank" rel="noopener">get one</a>)</small></span>
+            <input id="aiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" />
+          </label>
+          <p class="ai__note">
+            The key is stored in this browser only and sent straight to the provider — there is
+            no server here to hold it. <button id="aiForget" class="linkish" type="button">Forget saved keys</button>
+          </p>
+        </div>
+
+        <label class="field">
+          <span>What should it write?</span>
+          <textarea id="aiPrompt" rows="4" placeholder="A 600-word essay on the causes of the First World War, for a Year 10 history class."></textarea>
+        </label>
+
+        <div class="actions">
+          <button id="aiGenerate" class="btn btn-primary" type="button">Generate</button>
+          <button id="aiStop" class="btn btn-danger hidden" type="button">Stop</button>
+          <span id="aiStatus" class="ai__status"></span>
+        </div>
+
+        <div id="aiResultWrap" class="ai__result hidden">
+          <div class="ai__output" id="aiOutput"></div>
+          <div class="ai__side">
+            <button id="aiType" class="btn btn-primary" type="button">Type into a Doc</button>
+            <button id="aiUse" class="btn" type="button">Send to editor</button>
+            <button id="aiRegenerate" class="btn btn-ghost" type="button">Regenerate</button>
+            <span id="aiCounts" class="ai__counts"></span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="counts"><span id="counts">0 characters · 0 words</span></div>

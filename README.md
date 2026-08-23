@@ -208,6 +208,23 @@ document and runs the real `typist.js` against it:
 Note that browsers throttle timers in hidden tabs, so leave the tab in front while a run is
 going — in the background the same self-test takes minutes instead of seconds.
 
+## Drafting with an AI model
+
+The app's third input tab generates text with Claude, OpenAI or Gemini and hands it to the
+typing pipeline — the draft appears with **Type into a Doc** and **Send to editor** beside it.
+
+**Everyone brings their own API key.** There is no server here to hold one, so the key is
+entered in the page, kept in that browser's `localStorage`, and sent straight to the provider.
+This is the one place the no-backend design costs something: a key in a browser is visible to
+anyone with access to that browser, and Anthropic's SDK requires `dangerouslyAllowBrowser` to
+permit it at all. It is reasonable here because the key belongs to the person sitting at the
+machine — it would not be reasonable if one key were shared with visitors.
+
+Model lists are fetched from each provider using the entered key rather than hard-coded, so
+they cannot go stale; a short static list stands in until a key is present. Claude runs through
+the official `@anthropic-ai/sdk`, loaded as an ES module from a CDN so the no-build-step
+property survives, and streams so the draft appears as it is written.
+
 ## Things worth knowing
 
 - **Keep the tab in the foreground.** Browsers throttle timers in background tabs, which
