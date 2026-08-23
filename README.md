@@ -53,10 +53,16 @@ information — safe to commit and safe to paste into the page.
      Only listed test users can sign in until you publish.
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
    - Application type: **Web application**.
-   - **Authorised JavaScript origins** — add every origin you will open the page from:
-     - `http://localhost:8000` for local use
-     - `https://<your-github-username>.github.io` for GitHub Pages
-   - No redirect URI is needed for this flow.
+   - **Authorised JavaScript origins** — add every origin the page will be loaded from.
+     Scheme and host only: no path, no trailing slash, and HTTPS everywhere except localhost.
+     - `https://homeworkwritter.com` — the live site
+     - `http://localhost:8000` — local development
+     - add `https://www.homeworkwritter.com` as well **only** if www serves the page rather
+       than redirecting to the bare domain
+   - **Leave "Authorised redirect URIs" empty.** Redirect URIs belong to the server-side
+     authorisation-code flow. This app uses the browser token flow, where the token comes
+     back through the sign-in popup and Google never redirects anywhere.
+   - Origin changes can take a few minutes to take effect.
 5. Copy the client ID (it ends in `.apps.googleusercontent.com`) and set `DEFAULT_CLIENT_ID`
    in [`src/config.js`](src/config.js), then commit and deploy. **Do this rather than pasting
    it into the box in the page** — the box is a fallback for trying the app out, and it only
@@ -71,6 +77,10 @@ sign in — up to 100 of them. That is the right setting for personal use.
 To open it to anyone, go to the OAuth consent screen and press **Publish app**. Because every
 scope this app requests is non-sensitive, there is no verification review to pass and no
 "Google hasn't verified this app" warning — publishing takes effect immediately.
+
+Publishing is also where the domain comes up a second time, on a different screen from the
+origins above: the consent screen asks for an app homepage and a privacy policy URL, and wants
+`homeworkwritter.com` listed under **Authorised domains**.
 
 ### Scopes, and why they are narrow
 
