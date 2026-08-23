@@ -63,7 +63,7 @@
   </div>
 </header>
 
-<dl class="figures">
+<dl class="figures reveal reveal-stagger">
   <div class="figure"><dt>0</dt><dd>servers between you and Google</dd></div>
   <div class="figure"><dt>1</dt><dd>permission, the narrowest one</dd></div>
   <div class="figure"><dt>15–140</dt><dd>words per minute, your call</dd></div>
@@ -72,10 +72,10 @@
 
 <main>
 
-<section class="section" id="how">
+<section class="section reveal" id="how">
   <p class="section__label"><span class="section__num">01</span> Method</p>
   <h2>Three steps, and one minute of setup that happens once.</h2>
-  <ol class="list">
+  <ol class="list reveal reveal-stagger">
     <li>
       <div class="list__row">
         <span class="list__key">One</span>
@@ -106,10 +106,10 @@
   </ol>
 </section>
 
-<section class="section" id="detail">
+<section class="section reveal" id="detail">
   <p class="section__label"><span class="section__num">02</span> Detail</p>
   <h2>Built for how writing actually looks, not how fast it can be pasted.</h2>
-  <ul class="list">
+  <ul class="list reveal reveal-stagger">
     <li>
       <div class="list__row">
         <span class="list__key">Cadence</span>
@@ -149,7 +149,7 @@
   </ul>
 </section>
 
-<section class="section" id="privacy">
+<section class="section reveal" id="privacy">
   <p class="section__label"><span class="section__num">03</span> Access</p>
   <h2>There is no backend. That is the whole design.</h2>
   <div class="section__body">
@@ -165,7 +165,7 @@
     </p>
   </div>
 
-  <div class="scopes">
+  <div class="scopes reveal reveal-stagger">
     <div class="scopes__row">
       <div>
         <span class="scopes__name">auth/drive.file</span>
@@ -191,7 +191,7 @@
   </div>
 </section>
 
-<section class="section section--last" id="faq">
+<section class="section section--last reveal" id="faq">
   <p class="section__label"><span class="section__num">04</span> Questions</p>
   <div class="faq">
     <details>
@@ -223,7 +223,7 @@
 
 </main>
 
-<div class="statement">
+<div class="statement reveal">
   <p>Ready when you are.</p>
   <div class="hero__actions">
     <a class="cta cta--lead" href="./app.html">Open the app</a>
@@ -231,7 +231,7 @@
   </div>
 </div>
 
-<footer class="footer">
+<footer class="footer reveal">
   <span>Homework Writer</span>
   <div class="footer__links">
     <a href="./app.html">App</a>
@@ -243,11 +243,13 @@
 
 <script type="module">
 import { startDemo } from './src/demo.js';
+import { startReveal } from './src/reveal.js';
 startDemo({
   page: document.getElementById('demoPage'),
   status: document.getElementById('demoStatus'),
   replayBtn: document.getElementById('demoReplay'),
 });
+startReveal();
 </script>
 </body>
 </html>

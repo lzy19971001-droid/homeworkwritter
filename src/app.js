@@ -205,7 +205,13 @@ function refreshEstimate() {
 }
 
 function refreshStart() {
-  el.start.disabled = state.running || !isSignedIn() || !(state.sourceText || '').trim();
+  const hasText = !!(state.sourceText || '').trim();
+  el.start.disabled = state.running || !hasText;
+  if (!state.running) {
+    el.start.textContent = state.resumeText
+      ? 'Continue typing'
+      : (isSignedIn() ? 'Create doc & start typing' : 'Sign in & start typing');
+  }
 }
 
 /* ---------------------------------------------------------------- the run */
@@ -233,6 +239,27 @@ el.stop.addEventListener('click', () => {
 async function run() {
   const text = (state.sourceText || '').trim();
   if (!text) return;
+
+  // Signing in is part of pressing start, not a precondition for it. If the
+  // popup is dismissed we stop here rather than failing later on a 401.
+  if (!isSignedIn()) {
+    if (!getClientId()) {
+      el.setupCard.classList.remove('hidden');
+      el.setupCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      log('This copy has no OAuth client ID configured yet, so sign-in is unavailable.', true);
+      return;
+    }
+    el.start.disabled = true;
+    try {
+      log('Signing you in with Google first…');
+      const user = await signIn();
+      log(`Signed in as ${user?.email || 'your Google account'}.`);
+    } catch (err) {
+      log(describeError(err), true);
+      refreshStart();
+      return;
+    }
+  }
 
   state.running = true;
   el.start.disabled = true;
@@ -298,7 +325,6 @@ async function run() {
     state.typist = null;
     el.pauseBtn.classList.add('hidden');
     el.stop.classList.add('hidden');
-    el.start.textContent = state.resumeText ? 'Continue typing' : 'Create doc & start typing';
     refreshStart();
   }
 }

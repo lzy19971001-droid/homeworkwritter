@@ -33,6 +33,44 @@ const NEIGHBOURS = {
 
 const PAUSE_MULTIPLIER = [0, 1, 2, 3.5];
 
+/**
+ * The words a touch typist fires off without thinking. Typed as one motion,
+ * so they come out well above the average speed and rarely carry a typo.
+ */
+const COMMON = new Set(`the be to of and a in that have i it for not on with he as you do at
+this but his by from they we say her she or an will my one all would there their what so up out
+if about who get which go me when make can like time no just him know take people into year your
+good some could them see other than then now look only come its over think also back after use
+two how our work first well way even new want because any these give day most us is are was were
+been has had did does said them where why while much many such own same each few more other them
+i'm it's don't that's is not and the of a to in`.split(/\s+/).filter(Boolean));
+
+/**
+ * How quickly a given word comes out, as a multiplier on the target speed.
+ * Familiar short words run fast; long, numeric, capitalised or otherwise
+ * awkward ones drag. Everything else sits near 1.
+ */
+export function wordEase(word) {
+  const bare = word.replace(/[^A-Za-z0-9'-]/g, '');
+  if (!bare) return 1;
+  const lower = bare.toLowerCase();
+  let ease = 1;
+
+  if (COMMON.has(lower)) ease *= bare.length <= 4 ? 1.5 : 1.3;
+  if (bare.length >= 14) ease *= 0.62;
+  else if (bare.length >= 10) ease *= 0.74;
+  else if (bare.length >= 8) ease *= 0.86;
+
+  if (/\d/.test(bare)) ease *= 0.7;                      // figures need looking at
+  if (/[A-Z]{2,}/.test(bare)) ease *= 0.72;               // acronyms, shift-key work
+  else if (/^[A-Z]/.test(bare) && !COMMON.has(lower)) ease *= 0.85;  // proper nouns
+  // Accented letters, dashes and curly quotes: awkward keys, or none at all.
+  for (const ch of word) { if (ch.codePointAt(0) > 127) { ease *= 0.7; break; } }
+  if (/[()";:\[\]{}]/.test(word)) ease *= 0.88;           // reaching for punctuation
+
+  return Math.min(1.6, Math.max(0.5, ease));
+}
+
 /** Characters per second implied by a words-per-minute figure (5 chars is 1 word). */
 const cps = (wpm) => (wpm * 5) / 60;
 
@@ -52,7 +90,11 @@ export function splitWords(text) {
 export function estimateMs(text, { wpm = 55, typoRate = 0.03, pauseLevel = 1, maxRpm = 45 } = {}) {
   if (!text) return 0;
   const speed = cps(wpm);
-  const typingMs = (text.length / speed) * 1000;
+  // Weight each word by its own ease, so a page of short familiar words is not
+  // estimated at the same rate as a page of technical vocabulary.
+  let weighted = 0;
+  for (const token of splitWords(text)) weighted += token.length / wordEase(token.trim());
+  const typingMs = (weighted / speed) * 1000;
 
   const m = PAUSE_MULTIPLIER[pauseLevel] ?? 1;
   const sentences = (text.match(/[.!?]\s/g) || []).length;
@@ -140,8 +182,12 @@ export class HumanTypist {
     this.onProgress({ done: this.done, total: this.total, requests: this.requests, etaMs, state });
   }
 
-  /** One API call's worth of characters, paced so the run lands near the target wpm. */
-  async emit(chunk) {
+  /**
+   * One API call's worth of characters. The caller passes the time these
+   * particular words should have taken — summed per word, so the pace inside a
+   * burst reflects which words they were, not just how many characters.
+   */
+  async emit(chunk, budgetMs) {
     await this.gate();
     const started = performance.now();
     await this.sink.append(chunk);
@@ -149,10 +195,14 @@ export class HumanTypist {
     this.docChars += chunk.length;
     this.done += chunk.length;
 
-    const budgetMs = (chunk.length / (cps(this.wpm) * this.drift)) * 1000 * rand(0.82, 1.22);
     const spent = performance.now() - started;
     if (budgetMs > spent) await this.wait(budgetMs - spent);
     this.report('typing');
+  }
+
+  /** How long one word should take, given how awkward it is to type. */
+  wordMs(text, ease) {
+    return (text.length / (cps(this.wpm) * ease * this.drift)) * 1000 * rand(0.82, 1.22);
   }
 
   /** Type a wrong spelling, notice it, rub it out, and carry on. */
@@ -196,30 +246,54 @@ export class HumanTypist {
       Math.max(2, Math.round(cps(this.wpm) * this.drift * (CADENCE_MS / 1000) * rand(0.7, 1.3)));
 
     let buffer = '';
+    let budget = 0;               // ms the words now in the buffer should take
     let burst = burstTarget();
     let sinceThought = 0;
     let nextThought = rand(14, 42);
+
+    const flush = async () => {
+      if (!buffer) return;
+      await this.emit(buffer, budget);
+      buffer = '';
+      budget = 0;
+    };
 
     for (const token of words) {
       await this.gate();
 
       const core = token.trim();
-      const wrong = core.length >= 4 && chance(this.typoRate) ? corrupt(core) : null;
+      const ease = wordEase(core);
+
+      // A word that is slower to type is also likelier to come out wrong.
+      const typoOdds = Math.min(this.typoRate * 4, this.typoRate / ease);
+      const wrong = core.length >= 4 && chance(typoOdds) ? corrupt(core) : null;
+
+      // Awkward words get a beat of hesitation before the hands start moving.
+      if (pauseM > 0 && ease <= 0.72 && chance(0.3)) {
+        await flush();
+        this.report('thinking');
+        await this.wait(rand(250, 900) * pauseM);
+      }
 
       if (wrong && wrong !== core) {
         const at = token.indexOf(core);
         const lead = token.slice(0, at);
         const trail = token.slice(at + core.length);
-        if (buffer + lead) { await this.emit(buffer + lead); buffer = ''; }
+        if (buffer + lead) {
+          await this.emit(buffer + lead, budget + this.wordMs(lead, ease));
+          buffer = '';
+          budget = 0;
+        }
         await this.mistype(wrong);
         buffer = core + trail;
+        budget = this.wordMs(core + trail, ease);
       } else {
         buffer += token;
+        budget += this.wordMs(token, ease);
       }
 
       if (buffer.length >= burst) {
-        await this.emit(buffer);
-        buffer = '';
+        await flush();
         burst = burstTarget();
       }
 
@@ -227,12 +301,12 @@ export class HumanTypist {
       // then mid-flow, the way anyone actually writing something stops to think.
       if (pauseM > 0) {
         if (/\n\s*\n\s*$/.test(token)) {
-          if (buffer) { await this.emit(buffer); buffer = ''; }
+          await flush();
           this.drift = rand(0.85, 1.18);
           this.report('thinking');
           await this.wait(rand(900, 3200) * pauseM);
         } else if (/[.!?]["')\]]?\s+$/.test(token)) {
-          if (buffer) { await this.emit(buffer); buffer = ''; }
+          await flush();
           this.report('thinking');
           await this.wait(rand(280, 1300) * pauseM);
         } else if (++sinceThought > nextThought) {
@@ -244,7 +318,7 @@ export class HumanTypist {
       }
     }
 
-    if (buffer) await this.emit(buffer);
+    await flush();
     this.report('done');
     return { requests: this.requests, chars: this.done, ms: Date.now() - this.startedAt };
   }
