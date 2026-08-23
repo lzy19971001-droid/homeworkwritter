@@ -167,31 +167,47 @@ registered.
 
 ## How the typing works
 
-[`src/typist.js`](src/typist.js) holds the model.
+[`src/typist.js`](src/typist.js) holds the model and [`src/keyboard.js`](src/keyboard.js) the
+key geometry. Timing is per keystroke, and the numbers come from Dhakal, Feit, Kristensson &
+Oulasvirta, [*Observations on Typing from 136 Million
+Keystrokes*](https://userinterfaces.aalto.fi/136Mkeystrokes/) (CHI 2018) — 136 million
+keystrokes from 168,960 people — plus the earlier work it reviews:
 
-- The engine writes through a **sink** — an object with `append`, `remove` and `length`. The
-  app passes one backed by the Google Docs API; the landing page passes one backed by a
-  `<div>`, which is why the demo in the hero is the real thing rather than a scripted
-  animation.
-- Text is split into words with their whitespace attached, then accumulated into a buffer.
-- Roughly every 1.6 seconds of "typing time" the buffer is flushed as one
-  `documents.batchUpdate` → `insertText` call appended at the end of the body. Sending one
-  request per character would be far slower and would blow through the API quota; bursts of
-  a second or two are also how Google Docs itself groups keystrokes into revisions.
-- After each flush the code sleeps for however long those characters *should* have taken at
-  the target wpm, minus the time the request itself took, with ±20% jitter.
-- A typo fires on some fraction of words of 4+ letters. The misspelling is typed
-  (adjacent-key slip, transposition, doubled letter, or dropped letter), there is a pause of
-  0.2–0.9 s while it is "noticed", then a `deleteContentRange` removes it and the correct
-  spelling follows.
-- Pauses land at sentence ends, at paragraph breaks (where the speed also drifts up or down
-  a little for the next paragraph), and at random intervals mid-flow.
-- A sliding-window rate limiter keeps requests under `MAX_REQUESTS_PER_MINUTE`, and every
-  call retries 429/5xx with exponential backoff and refreshes the token on 401.
+| Finding | How it is used |
+| --- | --- |
+| Mean inter-key interval **238.66 ms** (SD 111.60) at **51.56 wpm** | The baseline interval, and the spread: CV ≈ 0.47 |
+| The distribution is right-skewed | Intervals are drawn log-normally, not uniformly |
+| Alternating hands beat same-hand pairs; same-finger pairs are ~80 ms slower than alternating | Per-transition cost from the QWERTY finger map |
+| The left hand trails the right by 7–15 ms | +10 ms on left-hand keys |
+| Error corrections are **6.3% of all keypresses** (2.29 per sentence) | Default error rate, and what the slider means |
+| Insertion and omission errors outnumber substitutions for skilled typists | Error kinds are weighted 2:2:1:1 insert/omit/substitute/transpose |
+
+On top of the per-key timing: hands warm up over the first couple of hundred characters and
+tire slightly past three thousand; speed drifts between paragraphs; and pauses land at sentence
+ends, paragraph breaks, occasionally mid-flow, and rarely as a several-second interruption.
+
+**Errors are made and then noticed.** A slip is committed at a keystroke, typing carries on for
+one to six more keys, and only then does the correction start — backspacing over everything
+since and retyping it. Right after a correction the hands are more careful for a few keys.
+
+### Keystroke timing, API traffic
+
+One API request per keystroke would be roughly 300 requests a minute at 60 wpm, far past the
+Docs quota. So the two are decoupled: **timing is per keystroke, traffic is per burst.** Each
+keystroke gets its own interval; characters accumulate until about 1.6 seconds of typing has
+built up, then go out as one `insertText`. A measured run: 181 keystrokes became 24 writes,
+7.5 keys apiece.
+
+Pass `granular: true` with a sink that costs nothing — a DOM node, a string — and every
+keystroke and backspace lands separately. That is what the lab and the terminal script do.
+
+The target speed is a steady-state rate: the average over a short passage comes out a little
+below it, because the opening characters are slower. The time estimate models the same
+envelope, so it does not come out optimistic.
 
 The cursor position is tracked locally: a Doc body always ends with a newline that cannot be
-deleted, so with *n* characters typed the body's end index is *n + 2*. If a delete ever
-fails, the code re-reads the real length from the API and retries.
+deleted, so with *n* characters typed the body's end index is *n + 2*. If a delete ever fails,
+the code re-reads the real length from the API and retries.
 
 ## Testing the typing locally
 
@@ -208,21 +224,33 @@ whether the result matches the source and how it got there.
 
 ```
 python tests/typing.py --speed 8            # eight times faster
-python tests/typing.py --wpm 40 --typos 25  # slow and error-prone
+python tests/typing.py --wpm 40 --typos 4   # slower, more error-prone
 python tests/typing.py --file essay.txt     # your own text
 python tests/typing.py --seed 7             # same run every time
 python tests/typing.py --trace              # log every event instead of animating
+python tests/typing.py --stats 200          # timing distribution over N runs
 python tests/typing.py --check              # constants still match the JS?
 ```
 
 `--trace` is the one to reach for when you want to see the mechanics:
 
 ```
-0.31s  burst    +5 'War. '
-0.33s  pause    sentence 1202ms
-0.50s  typo     immediate: conflict -> confkict
-0.53s  pause    spotted-typo 236ms
-0.53s  delete   -8
+0.00s  key        'T' 338ms     shift, so slow
+0.00s  key        'h' 63ms      hands alternate, so quick
+0.01s  error      insert 'a' before 'a'
+0.01s  key        'a' 207ms
+0.02s  pause      spotted-error 231ms
+0.02s  backspace  -4
+0.02s  fix        back to 7
+```
+
+`--stats N` types the text N times with no delays and reports the timing spread against the
+study's own figures, which is how you check a change to the model did what you meant:
+
+```
+keystroke intervals mean  214.9 ms   SD 112.7   median  190.1
+                    p10  102.1   p90  354.9   max 1214.2
+study reference     mean 238.7 ms   SD 111.6  (at 51.6 wpm)
 ```
 
 This script is a **port** of the model in [`src/typist.js`](src/typist.js), not a wrapper —

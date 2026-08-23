@@ -37,7 +37,8 @@
   .trace .t { color: var(--ink-faint); min-width: 4.2rem; }
   .trace .burst { color: var(--ink-dim); }
   .trace .pause { color: #8a6d1f; }
-  .trace .typo, .trace .delete, .trace .fix { color: var(--alert); }
+  .trace .error, .trace .backspace, .trace .fix { color: var(--alert); }
+  .trace .key { color: var(--ink-faint); }
   .verdict { font-weight: 500; }
   .verdict.pass { color: #1e6b33; }
   .verdict.fail { color: var(--alert); }
@@ -75,8 +76,8 @@ Historians remain divided on whether those terms made a second war inevitable, o
         <input id="wpm" type="range" min="15" max="140" step="5" value="70" />
       </label>
       <label class="field">
-        <span>Typos <output id="typoOut">8</output>%</span>
-        <input id="typo" type="range" min="0" max="60" step="1" value="8" />
+        <span>Errors per keystroke <output id="typoOut">3</output>%</span>
+        <input id="typo" type="range" min="0" max="30" step="1" value="3" />
       </label>
       <label class="field">
         <span>Pauses <output id="pauseOut">normal</output></span>
@@ -108,10 +109,10 @@ Historians remain divided on whether those terms made a second war inevitable, o
         <dl class="metrics">
           <div class="metric"><dt>Elapsed</dt><dd id="mElapsed">—</dd></div>
           <div class="metric"><dt>Modelled wpm</dt><dd id="mWpm">—</dd></div>
-          <div class="metric"><dt>Bursts</dt><dd id="mBursts">—</dd></div>
-          <div class="metric"><dt>Typos</dt><dd id="mTypos">—</dd></div>
-          <div class="metric"><dt>Fixed at once</dt><dd id="mNow">—</dd></div>
-          <div class="metric"><dt>Fixed later</dt><dd id="mLate">—</dd></div>
+          <div class="metric"><dt>Keystrokes</dt><dd id="mBursts">—</dd></div>
+          <div class="metric"><dt>Errors</dt><dd id="mTypos">—</dd></div>
+          <div class="metric"><dt>Mean interval</dt><dd id="mNow">—</dd></div>
+          <div class="metric"><dt>Backspaces</dt><dd id="mLate">—</dd></div>
           <div class="metric"><dt>Pauses</dt><dd id="mPauses">—</dd></div>
           <div class="metric"><dt>Longest pause</dt><dd id="mLongest">—</dd></div>
         </dl>
@@ -184,11 +185,12 @@ function addTrace(evt, t0) {
   const row = document.createElement('div');
   const at = ((performance.now() - t0) / 1000).toFixed(1) + 's';
   let detail = '';
-  if (evt.type === 'burst') detail = `+${evt.chars} ${JSON.stringify(evt.text.slice(0, 28))}`;
+  if (evt.type === 'key') detail = JSON.stringify(evt.ch);
+  else if (evt.type === 'burst') detail = `+${evt.chars} ${JSON.stringify(evt.text.slice(0, 28))}`;
+  else if (evt.type === 'error') detail = `${evt.kind}: ${JSON.stringify(evt.expected)} -> ${JSON.stringify(evt.typed)}`;
+  else if (evt.type === 'backspace') detail = `-${evt.chars}`;
   else if (evt.type === 'pause') detail = `${evt.reason} ${evt.ms}ms`;
-  else if (evt.type === 'typo') detail = `${evt.mode}: ${evt.right} → ${evt.wrong}`;
-  else if (evt.type === 'delete') detail = `−${evt.chars}`;
-  else if (evt.type === 'fix') detail = `retyped ${evt.chars}`;
+  else if (evt.type === 'fix') detail = `back ${evt.chars}${evt.late ? ', late' : ''}`;
   row.innerHTML = `<span class="t">${at}</span><span class="${evt.type}">${evt.type}</span><span>${detail.replace(/</g, '&lt;')}</span>`;
   trace.append(row);
   trace.scrollTop = trace.scrollHeight;
@@ -207,10 +209,10 @@ function showStats(result, timeScale = 1) {
   // Running at 30x makes the wall clock 30x shorter; divide back out so this
   // reads as the speed the model actually produced, comparable to the target.
   $('mWpm').textContent = Math.round(result.effectiveWpm / timeScale);
-  $('mBursts').textContent = result.bursts;
-  $('mTypos').textContent = result.typos;
-  $('mNow').textContent = result.immediateFixes;
-  $('mLate').textContent = result.delayedFixes;
+  $('mBursts').textContent = result.keystrokes;
+  $('mTypos').textContent = result.errors;
+  $('mNow').textContent = result.meanIki + 'ms';
+  $('mLate').textContent = result.backspaces;
   $('mPauses').textContent = result.pauses;
   $('mLongest').textContent = Math.round(result.longestPauseMs) + 'ms';
 }
@@ -224,7 +226,7 @@ $('run').addEventListener('click', async () => {
   $('run').disabled = true; $('stop').classList.remove('hidden');
 
   const t0 = performance.now();
-  typist = new HumanTypist({ sink, ...opts(), onEvent: (e) => addTrace(e, t0) });
+  typist = new HumanTypist({ sink, granular: true, ...opts(), onEvent: (e) => addTrace(e, t0) });
   try {
     const result = await typist.type(text);
     showStats(result, +$('scale').value);
@@ -247,9 +249,9 @@ $('selftest').addEventListener('click', async () => {
   trace.textContent = ''; bars.textContent = '';
   const cases = [
     ['plain', { typoRate: 0, pauseLevel: 0 }],
-    ['typos 30%', { typoRate: 0.3, pauseLevel: 0 }],
-    ['typos 100%', { typoRate: 1, pauseLevel: 0 }],
-    ['typos 100% + pauses', { typoRate: 1, pauseLevel: 1 }],
+    ['errors 8%', { typoRate: 0.08, pauseLevel: 0 }],
+    ['errors 30%', { typoRate: 0.3, pauseLevel: 0 }],
+    ['errors 30% + pauses', { typoRate: 0.3, pauseLevel: 1 }],
   ];
   const texts = [
     $('src').value.trim(),
@@ -273,7 +275,7 @@ $('selftest').addEventListener('click', async () => {
         const r = await new HumanTypist({ sink, wpm: 20000, timeScale: 400, ...cfg }).type(text);
         const ok = doc === text;
         allOk = allOk && ok;
-        line(`${label} / text ${i + 1}: ${ok ? 'PASS' : 'FAIL'} — ${r.typos} typos, ${r.immediateFixes} now, ${r.delayedFixes} later, ${r.deletes} deletes`, ok ? 'burst' : 'fail');
+        line(`${label} / text ${i + 1}: ${ok ? 'PASS' : 'FAIL'} — ${r.keystrokes} keys, ${r.errors} errors, ${r.backspaces} backspaces`, ok ? 'burst' : 'fail');
         if (!ok) line(`  got  ${JSON.stringify(doc.slice(0, 90))}`, 'fail');
       } catch (err) {
         allOk = false;
