@@ -4,7 +4,7 @@
 //
 // If you leave it empty the app asks for it at runtime and remembers it in
 // localStorage, so you can also try the app without editing this file.
-export const DEFAULT_CLIENT_ID = '';
+export const DEFAULT_CLIENT_ID = '138900531716-9bt64i9ibcs82fkok8nn6fd932l5q4gd.apps.googleusercontent.com';
 
 // Scopes:
 //   drive.file – see and manage ONLY the files this app creates, never the rest
