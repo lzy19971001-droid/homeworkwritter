@@ -21,7 +21,8 @@ you → browser → Google OAuth → Google Docs API → your Doc
   - `.docx` is unzipped and parsed *in the browser* — no upload, no library.
   - `.pdf`, `.doc`, `.odt`, `.rtf` are converted by Google Drive: the file is uploaded,
     converted, exported as text, and the temporary copy is moved to your Drive trash.
-- **Creates a new Doc** (optionally inside a Drive folder it creates for you).
+- **Creates a new Doc** (optionally inside a Drive folder it creates for you), asking for
+  only the narrow `drive.file` scope — it can never see the rest of your Drive.
 - **Types it in like a human**: adjustable speed (15–140 wpm), typo rate, and how long it
   stops to "think" between sentences and paragraphs.
 - **Pause / resume / stop** at any point; if a run fails or is stopped, pressing start again
@@ -41,8 +42,8 @@ safe to commit and safe to paste into the page.
 3. **APIs & Services → OAuth consent screen**:
    - User type **External** is fine.
    - Fill in app name and support email.
-   - Add the scopes `.../auth/documents` and `.../auth/drive.file` (plus `openid`, `email`,
-     `profile`, which are non-sensitive).
+   - Add the scope `.../auth/drive.file` (plus `openid`, `email`, `profile`). All four are
+     non-sensitive, so **no Google verification review is required**.
    - While the app is in **Testing**, add your own Google account under **Test users**.
      Only listed test users can sign in until you publish.
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
@@ -57,13 +58,16 @@ safe to commit and safe to paste into the page.
 
 ### Scopes, and why they are narrow
 
-| Scope | What it allows |
-| --- | --- |
-| `auth/documents` | Create and edit Google Docs |
-| `auth/drive.file` | See and manage **only the files this app creates** — not your existing Drive |
-| `openid`, `email`, `profile` | Show which account is signed in |
+| Scope | What it allows | Google's classification |
+| --- | --- | --- |
+| `auth/drive.file` | See and manage **only the files this app creates** — not your existing Drive | Non-sensitive (recommended) |
+| `openid`, `email`, `profile` | Show which account is signed in | Non-sensitive |
 
-`drive.file` is deliberate: the app can never read the rest of your Drive.
+The obvious scope for this app would be `auth/documents`, but that one is **sensitive**: it
+grants access to every Doc you own and puts the app through Google's verification review.
+It is not requested. The Docs API accepts `drive.file` for documents the app created, so the
+Doc is created through the Drive API — the app owns it, and can then type into it — and the
+app remains entirely non-sensitive.
 
 ## Running it
 

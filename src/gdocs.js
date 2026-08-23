@@ -87,8 +87,22 @@ const DOCS = 'https://docs.googleapis.com/v1/documents';
 const DRIVE = 'https://www.googleapis.com/drive/v3/files';
 const DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
 
-export async function createDocument(title) {
-  return api(DOCS, { method: 'POST', json: { title: title || 'Untitled' } });
+/**
+ * Create the empty Doc through the Drive API rather than documents.create, so
+ * that the narrow drive.file scope is unambiguously sufficient: Drive makes the
+ * file, the app owns it, and the Docs API may then edit it. Optionally drops it
+ * straight into a folder, which saves a second call to move it afterwards.
+ */
+export async function createDocument(title, folderId = null) {
+  const file = await api(`${DRIVE}?fields=id`, {
+    method: 'POST',
+    json: {
+      name: title || 'Untitled',
+      mimeType: 'application/vnd.google-apps.document',
+      ...(folderId ? { parents: [folderId] } : {}),
+    },
+  });
+  return { documentId: file.id };
 }
 
 export function docUrl(documentId) {
@@ -133,13 +147,6 @@ export async function ensureFolder(name) {
     json: { name, mimeType: 'application/vnd.google-apps.folder' },
   });
   return created.id;
-}
-
-export async function moveToFolder(fileId, folderId) {
-  return api(`${DRIVE}/${fileId}?addParents=${folderId}&removeParents=root&fields=id,parents`, {
-    method: 'PATCH',
-    json: {},
-  });
 }
 
 /**

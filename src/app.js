@@ -1,5 +1,5 @@
 import { getClientId, setClientId, signIn, signOut, onAuthChange, isSignedIn } from './auth.js';
-import { createDocument, docUrl, ensureFolder, moveToFolder, ApiError } from './gdocs.js';
+import { createDocument, docUrl, ensureFolder, ApiError } from './gdocs.js';
 import { extractText } from './extract.js';
 import { HumanTypist, Stopped, estimateMs, formatDuration } from './typist.js';
 import { MAX_REQUESTS_PER_MINUTE } from './config.js';
@@ -230,16 +230,17 @@ async function run() {
   try {
     if (!resuming) {
       const title = el.title.value.trim() || 'Homework';
-      log(`Creating "${title}" in your Google Drive…`);
-      const doc = await createDocument(title);
-      state.documentId = doc.documentId;
-
       const folderName = el.folder.value.trim();
+
+      let folderId = null;
       if (folderName) {
-        const folderId = await ensureFolder(folderName);
-        await moveToFolder(state.documentId, folderId);
-        log(`Filed it under "${folderName}".`);
+        folderId = await ensureFolder(folderName);
+        log(`Filing it under "${folderName}".`);
       }
+
+      log(`Creating "${title}" in your Google Drive…`);
+      const doc = await createDocument(title, folderId);
+      state.documentId = doc.documentId;
 
       const url = docUrl(state.documentId);
       el.docLink.href = url;

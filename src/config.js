@@ -7,11 +7,13 @@
 export const DEFAULT_CLIENT_ID = '';
 
 // Scopes:
-//   documents  – create and edit Google Docs
-//   drive.file – see and manage ONLY the files this app creates (not your whole Drive)
+//   drive.file – see and manage ONLY the files this app creates, never the rest
+//                of your Drive. The Docs API accepts it for documents the app
+//                created, so the sensitive `documents` scope (which would grant
+//                access to every Doc you own, and would put the app through
+//                Google's verification review) is deliberately NOT requested.
 //   openid/email/profile – show who is signed in
 export const SCOPES = [
-  'https://www.googleapis.com/auth/documents',
   'https://www.googleapis.com/auth/drive.file',
   'openid',
   'email',
